@@ -5,6 +5,10 @@ import type { RouteObject } from "react-router";
 const LoginPage = lazy(() => import("@/pages/sys/login"));
 const authCustom: RouteObject[] = [
 	{
+		index: true,
+		element: <LoginPage />,
+	},
+	{
 		path: "login",
 		element: <LoginPage />,
 	},
@@ -12,7 +16,7 @@ const authCustom: RouteObject[] = [
 
 export const authRoutes: RouteObject[] = [
 	{
-		path: "auth",
+		path: "",
 		element: (
 			<Suspense>
 				<Outlet />

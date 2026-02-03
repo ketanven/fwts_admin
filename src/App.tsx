@@ -21,7 +21,25 @@ if (import.meta.env.DEV) {
 	});
 }
 
+import { useEffect } from "react";
+import adminAuthService from "@/api/services/adminAuthService";
+import useUserStore from "@/store/userStore";
+
 function App({ children }: { children: React.ReactNode }) {
+	useEffect(() => {
+		const initUser = async () => {
+			try {
+				const user = await adminAuthService.getProfile();
+                if (user) {
+				    useUserStore.getState().actions.setUserInfo(user as any);
+                }
+			} catch (error) {
+				console.error("Failed to fetch user profile:", error);
+			}
+		};
+		initUser();
+	}, []);
+
 	return (
 		<HelmetProvider>
 			<QueryClientProvider client={new QueryClient()}>

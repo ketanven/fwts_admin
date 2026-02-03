@@ -14,7 +14,10 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
 	(config) => {
-		config.headers.Authorization = "Bearer Token";
+		const accessToken = userStore.getState().userToken.accessToken;
+		if (accessToken) {
+			config.headers.Authorization = `Bearer ${accessToken}`;
+		}
 		return config;
 	},
 	(error) => Promise.reject(error),
@@ -24,7 +27,7 @@ axiosInstance.interceptors.response.use(
 	(res: AxiosResponse<Result<any>>) => {
 		if (!res.data) throw new Error(t("sys.api.apiRequestFailed"));
 		const { status, data, message } = res.data;
-		if (status === ResultStatus.SUCCESS) {
+		if (status === ResultStatus.SUCCESS || status === 200) {
 			return data;
 		}
 		throw new Error(message || t("sys.api.apiRequestFailed"));
@@ -32,7 +35,12 @@ axiosInstance.interceptors.response.use(
 	(error: AxiosError<Result>) => {
 		const { response, message } = error || {};
 		const errMsg = response?.data?.message || message || t("sys.api.errorMessage");
-		toast.error(errMsg, { position: "top-center" });
+		// toast.error(errMsg, { position: "top-center" }); // Let caller handle toast if needed, or keep it but allow caller to access validation errors
+        // For validation errors (400), we probably want to handle them specifically in the form, not just a generic toast.
+        // However, keeping toast for generic errors is good.
+        if (response?.status !== 400) {
+		    toast.error(errMsg, { position: "top-center" });
+        }
 		if (response?.status === 401) {
 			userStore.getState().actions.clearUserInfoAndToken();
 		}

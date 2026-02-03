@@ -2,7 +2,8 @@ import { useMutation } from "@tanstack/react-query";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import userService, { type SignInReq } from "@/api/services/userService";
+import adminAuthService from "@/api/services/adminAuthService";
+import type { SignInReq } from "@/api/services/userService";
 
 import { toast } from "sonner";
 import type { UserInfo, UserToken } from "#/entity";
@@ -57,7 +58,7 @@ export const useSignIn = () => {
 	const { setUserToken, setUserInfo } = useUserActions();
 
 	const signInMutation = useMutation({
-		mutationFn: userService.signin,
+		mutationFn: adminAuthService.login,
 	});
 
 	const signIn = async (data: SignInReq) => {
@@ -66,6 +67,7 @@ export const useSignIn = () => {
 			const { user, accessToken, refreshToken } = res;
 			setUserToken({ accessToken, refreshToken });
 			setUserInfo(user);
+            return res; // Return res so caller can use it
 		} catch (err) {
 			toast.error(err.message, {
 				position: "top-center",
@@ -76,5 +78,20 @@ export const useSignIn = () => {
 
 	return signIn;
 };
+
+// Add fetchUserProfile logic
+// Ideally it should be part of the store actions or a separate hook.
+// Adding it to store actions for global access.
+// But `UserStore` type definition needs update.
+// Instead of modifying the huge store object structure blindly which can be risky with `replace_file_content`,
+// I will just use a separate hook or simple function for now, OR I will modify `UserStore` type if I can see it.
+// I see `UserStore` type in previous `view_file`.
+// Let's stick to adding a query/mutation hook for profile fetch, but user wants it called on mount and "store that in session".
+// The store already has `setUserInfo`.
+// So in `App.tsx`, I can use `useEffect` and `adminAuthService.getProfile()`.
+// But I need to update the store with the result.
+// `useUserActions().setUserInfo(data)`.
+// So that's clean.
+
 
 export default useUserStore;

@@ -1,10 +1,7 @@
-import { DB_USER } from "@/_mock/assets_backup";
 import type { SignInReq } from "@/api/services/userService";
-import { Icon } from "@/components/icon";
 import { GLOBAL_CONFIG } from "@/global-config";
 import { useSignIn } from "@/store/userStore";
 import { Button } from "@/ui/button";
-import { Checkbox } from "@/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/ui/form";
 import { Input } from "@/ui/input";
 import { cn } from "@/utils";
@@ -19,16 +16,15 @@ import { LoginStateEnum, useLoginStateContext } from "./providers/login-provider
 export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRef<"form">) {
 	const { t } = useTranslation();
 	const [loading, setLoading] = useState(false);
-	const [remember, setRemember] = useState(true);
-	const navigatge = useNavigate();
+	const navigate = useNavigate();
 
 	const { loginState, setLoginState } = useLoginStateContext();
 	const signIn = useSignIn();
 
 	const form = useForm<SignInReq>({
 		defaultValues: {
-			username: DB_USER[0].username,
-			password: DB_USER[0].password,
+			email: "",
+			password: "",
 		},
 	});
 
@@ -36,13 +32,38 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 
 	const handleFinish = async (values: SignInReq) => {
 		setLoading(true);
+		console.log("Starting login...", values);
 		try {
 			await signIn(values);
-			navigatge(GLOBAL_CONFIG.defaultRoute, { replace: true });
+			console.log("Login successful, navigating to:", GLOBAL_CONFIG.defaultRoute);
+			navigate(GLOBAL_CONFIG.defaultRoute, { replace: true });
 			toast.success(t("sys.login.loginSuccessTitle"), {
 				closeButton: true,
 			});
-		} finally {
+		} catch (error: any) {
+			console.error("Login failed:", error);
+            // Handle backend validation errors
+            if (error.response && error.response.status === 400 && error.response.data) {
+                const errors = error.response.data;
+                Object.keys(errors).forEach((key) => {
+                    const messages = errors[key];
+                     // Check if field exists in form before setting error
+                     // Backend might return "detail" or other non-field errors
+                     if (key === 'email' || key === 'password') {
+                        form.setError(key as any, {
+                            type: "manual",
+                            message: Array.isArray(messages) ? messages[0] : messages
+                        });
+                     } else {
+                         // Fallback for non-field errors
+                         toast.error(Array.isArray(messages) ? messages[0] : messages);
+                     }
+                });
+            } else {
+                 // Fallback for other errors (already toasted in apiClient for non-400, but ensuring safety)
+                 // If apiClient suppressed 400 toast, we handle it here.
+            }
+        } finally {
 			setLoading(false);
 		}
 	};
@@ -58,13 +79,13 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 
 					<FormField
 						control={form.control}
-						name="username"
+						name="email"
 						rules={{ required: t("sys.login.accountPlaceholder") }}
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel>{t("sys.login.userName")}</FormLabel>
+								<FormLabel>Email</FormLabel>
 								<FormControl>
-									<Input placeholder={DB_USER.map((user) => user.username).join("/")} {...field} />
+									<Input placeholder="Email" {...field} />
 								</FormControl>
 								<FormMessage />
 							</FormItem>
@@ -79,29 +100,16 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 							<FormItem>
 								<FormLabel>{t("sys.login.password")}</FormLabel>
 								<FormControl>
-									<Input type="password" placeholder={DB_USER[0].password} {...field} suppressHydrationWarning />
+									<Input type="password" placeholder={t("sys.login.password")} {...field} />
 								</FormControl>
 								<FormMessage />
 							</FormItem>
 						)}
 					/>
 
-					{/* 记住我/忘记密码 */}
-					<div className="flex flex-row justify-between">
-						<div className="flex items-center space-x-2">
-							<Checkbox
-								id="remember"
-								checked={remember}
-								onCheckedChange={(checked) => setRemember(checked === "indeterminate" ? false : checked)}
-							/>
-							<label
-								htmlFor="remember"
-								className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-							>
-								{t("sys.login.rememberMe")}
-							</label>
-						</div>
-						<Button variant="link" onClick={() => setLoginState(LoginStateEnum.RESET_PASSWORD)} size="sm">
+					{/* 忘记密码 */}
+					<div className="flex flex-row justify-end">
+						<Button variant="link" onClick={() => setLoginState(LoginStateEnum.RESET_PASSWORD)} size="sm" className="px-0">
 							{t("sys.login.forgetPassword")}
 						</Button>
 					</div>
@@ -112,41 +120,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 						{t("sys.login.loginButton")}
 					</Button>
 
-					{/* 手机登录/二维码登录 */}
-					<div className="grid gap-4 sm:grid-cols-2">
-						<Button variant="outline" className="w-full" onClick={() => setLoginState(LoginStateEnum.MOBILE)}>
-							<Icon icon="uil:mobile-android" size={20} />
-							{t("sys.login.mobileSignInFormTitle")}
-						</Button>
-						<Button variant="outline" className="w-full" onClick={() => setLoginState(LoginStateEnum.QR_CODE)}>
-							<Icon icon="uil:qrcode-scan" size={20} />
-							{t("sys.login.qrSignInFormTitle")}
-						</Button>
-					</div>
 
-					{/* 其他登录方式 */}
-					<div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
-						<span className="relative z-10 bg-background px-2 text-muted-foreground">{t("sys.login.otherSignIn")}</span>
-					</div>
-					<div className="flex cursor-pointer justify-around text-2xl">
-						<Button variant="ghost" size="icon">
-							<Icon icon="mdi:github" size={24} />
-						</Button>
-						<Button variant="ghost" size="icon">
-							<Icon icon="mdi:wechat" size={24} />
-						</Button>
-						<Button variant="ghost" size="icon">
-							<Icon icon="ant-design:google-circle-filled" size={24} />
-						</Button>
-					</div>
-
-					{/* 注册 */}
-					<div className="text-center text-sm">
-						{t("sys.login.noAccount")}
-						<Button variant="link" className="px-1" onClick={() => setLoginState(LoginStateEnum.REGISTER)}>
-							{t("sys.login.signUpFormTitle")}
-						</Button>
-					</div>
 				</form>
 			</Form>
 		</div>
