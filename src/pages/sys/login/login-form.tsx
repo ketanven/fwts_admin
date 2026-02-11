@@ -109,7 +109,13 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 
 					{/* 忘记密码 */}
 					<div className="flex flex-row justify-end">
-						<Button variant="link" onClick={() => setLoginState(LoginStateEnum.RESET_PASSWORD)} size="sm" className="px-0">
+						<Button
+							type="button"
+							variant="link"
+							onClick={() => setLoginState(LoginStateEnum.RESET_PASSWORD)}
+							size="sm"
+							className="px-0"
+						>
 							{t("sys.login.forgetPassword")}
 						</Button>
 					</div>

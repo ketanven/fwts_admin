@@ -43,25 +43,25 @@ export const frontendNavData: NavProps["data"] = [
 			},
 			// menulevel
 			// errors
-			{
-				title: "sys.nav.error.index",
-				path: "/error",
-				icon: <Icon icon="bxs:error-alt" size="24" />,
-				children: [
-					{
-						title: "sys.nav.error.403",
-						path: "/error/403",
-					},
-					{
-						title: "sys.nav.error.404",
-						path: "/error/404",
-					},
-					{
-						title: "sys.nav.error.500",
-						path: "/error/500",
-					},
-				],
-			},
+			// {
+			// 	title: "sys.nav.error.index",
+			// 	path: "/error",
+			// 	icon: <Icon icon="bxs:error-alt" size="24" />,
+			// 	children: [
+			// 		{
+			// 			title: "sys.nav.error.403",
+			// 			path: "/error/403",
+			// 		},
+			// 		{
+			// 			title: "sys.nav.error.404",
+			// 			path: "/error/404",
+			// 		},
+			// 		{
+			// 			title: "sys.nav.error.500",
+			// 			path: "/error/500",
+			// 		},
+			// 	],
+			// },
 		],
 	},
 	{
@@ -110,18 +110,6 @@ export const frontendNavData: NavProps["data"] = [
 		name: "sys.nav.others",
 		items: [
 			{
-				title: "sys.nav.permission",
-				path: "/permission",
-				icon: <Icon icon="mingcute:safe-lock-fill" size="24" />,
-			},
-			{
-				title: "sys.nav.permission.page_test",
-				path: "/permission/page-test",
-				icon: <Icon icon="mingcute:safe-lock-fill" size="24" />,
-				auth: ["permission:read"],
-				hidden: true,
-			},
-			{
 				title: "sys.nav.calendar",
 				path: "/calendar",
 				icon: <Icon icon="solar:calendar-bold-duotone" size="24" />,
@@ -131,12 +119,6 @@ export const frontendNavData: NavProps["data"] = [
 				title: "sys.nav.kanban",
 				path: "/kanban",
 				icon: <Icon icon="solar:clipboard-bold-duotone" size="24" />,
-			},
-			{
-				title: "sys.nav.disabled",
-				path: "/disabled",
-				icon: <Icon icon="local:ic-disabled" size="24" />,
-				disabled: true,
 			},
 		],
 	},

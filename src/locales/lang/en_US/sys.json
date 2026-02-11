@@ -133,7 +133,7 @@
 				"index": "User",
 				"profile": "Profile"
 			},
-			"workbench": "Workbench"
+			"workbench": "Dashboard"
 		},
 		"settings": {
 			"accordion": "Accordion Menu",
