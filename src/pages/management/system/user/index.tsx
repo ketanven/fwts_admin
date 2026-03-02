@@ -136,7 +136,7 @@ export default function UserPage() {
 			title: "Action",
 			key: "operation",
 			align: "center",
-			width: 100,
+			width: 220,
 			render: (_, record) => (
 				<div className="flex w-full justify-center text-gray-500">
 					<Button
@@ -147,6 +147,9 @@ export default function UserPage() {
 						}}
 					>
 						<Icon icon="mdi:card-account-details" size={18} />
+					</Button>
+					<Button size="sm" variant="outline" onClick={() => push(`${pathname}/${record.id}/workspace`)}>
+						Workspace
 					</Button>
 					<Button variant="ghost" size="icon" onClick={() => onEdit(record)}>
 						<Icon icon="solar:pen-bold-duotone" size={18} />

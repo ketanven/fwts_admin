@@ -30,10 +30,6 @@ class AdminAuthService {
   changePassword(data: any) {
     return apiClient.post({ url: ENDPOINTS.ADMIN.CHANGE_PASSWORD, data });
   }
-
-  forgotPassword(data: any) {
-    return apiClient.post({ url: ENDPOINTS.ADMIN.FORGOT_PASSWORD, data });
-  }
 }
 
 export default new AdminAuthService();

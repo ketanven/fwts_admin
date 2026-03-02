@@ -14,6 +14,7 @@ import { Text, Title } from "@/ui/typography";
 import { rgbAlpha } from "@/utils/theme";
 import { useState } from "react";
 import BannerCard from "./banner-card";
+import { freelancers, invoices } from "@/pages/admin/data";
 
 const quickStats = [
 	{
@@ -93,6 +94,17 @@ const totalIncome = {
 	],
 };
 
+const platformStats = [
+	{ label: "Total Freelancers", value: String(freelancers.length), helper: "Across active workspace" },
+	{ label: "Active Freelancers", value: String(freelancers.filter((f) => f.status === "Active").length), helper: "Currently enabled" },
+	{ label: "Total Invoices", value: String(invoices.length), helper: "All statuses combined" },
+	{
+		label: "Outstanding Amount",
+		value: `₹${invoices.reduce((sum, invoice) => sum + Math.max(invoice.amount - invoice.paidAmount, 0), 0).toLocaleString()}`,
+		helper: "Pending + overdue",
+	},
+];
+
 export default function Workbench() {
 	const [activeTab, setActiveTab] = useState("All Transaction");
 	const chartOptions = useChart({
@@ -113,9 +125,26 @@ export default function Workbench() {
 
 	// throw new Error("test error"); // 注释掉直接抛错，改用演示组件
 
-	return (
+		return (
 		<div className="flex flex-col gap-4 w-full">
 			<BannerCard />
+			<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+				{platformStats.map((stat) => (
+					<Card key={stat.label}>
+						<CardContent className="pt-6">
+							<Text variant="body2" className="text-muted-foreground">
+								{stat.label}
+							</Text>
+							<Title as="h3" className="text-2xl font-bold mt-1">
+								{stat.value}
+							</Title>
+							<Text variant="caption" className="text-muted-foreground mt-2">
+								{stat.helper}
+							</Text>
+						</CardContent>
+					</Card>
+				))}
+			</div>
 			{/* 顶部四个统计卡片 */}
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 				{quickStats.map((stat) => (

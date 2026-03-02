@@ -9,7 +9,6 @@ import MobileForm from "./mobile-form";
 import { LoginProvider } from "./providers/login-provider";
 import QrCodeFrom from "./qrcode-form";
 import RegisterForm from "./register-form";
-import ResetForm from "./reset-form";
 
 function LoginPage() {
 	const token = useUserToken();
@@ -35,7 +34,6 @@ function LoginPage() {
 								<MobileForm />
 								<QrCodeFrom />
 								<RegisterForm />
-								<ResetForm />
 							</LoginProvider>
 						</div>
 					</div>

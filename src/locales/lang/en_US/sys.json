@@ -134,6 +134,11 @@
 				"profile": "Profile"
 			},
 			"workbench": "Dashboard"
+			,
+			"admin_suite": "Admin Suite",
+			"freelancer_workspace": "Freelancer Workspace",
+			"invoices_global": "Invoices (Global)",
+			"reports_admin": "Reports"
 		},
 		"settings": {
 			"accordion": "Accordion Menu",

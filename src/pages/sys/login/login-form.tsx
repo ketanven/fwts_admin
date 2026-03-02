@@ -18,7 +18,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 	const [loading, setLoading] = useState(false);
 	const navigate = useNavigate();
 
-	const { loginState, setLoginState } = useLoginStateContext();
+	const { loginState } = useLoginStateContext();
 	const signIn = useSignIn();
 
 	const form = useForm<SignInReq>({
@@ -106,19 +106,6 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 							</FormItem>
 						)}
 					/>
-
-					{/* 忘记密码 */}
-					<div className="flex flex-row justify-end">
-						<Button
-							type="button"
-							variant="link"
-							onClick={() => setLoginState(LoginStateEnum.RESET_PASSWORD)}
-							size="sm"
-							className="px-0"
-						>
-							{t("sys.login.forgetPassword")}
-						</Button>
-					</div>
 
 					{/* 登录按钮 */}
 					<Button type="submit" className="w-full">

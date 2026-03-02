@@ -5,7 +5,6 @@ export const ENDPOINTS = {
     LOGIN: '/admin/login/',
     PROFILE: '/admin/profile/',
     CHANGE_PASSWORD: '/admin/change-password/',
-    FORGOT_PASSWORD: '/admin/forgot-password/',
     USERS: '/admin/users/',
   },
 };
