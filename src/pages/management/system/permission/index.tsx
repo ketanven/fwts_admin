@@ -1,132 +1,164 @@
-import { Icon } from "@/components/icon";
+import { useManagementActions, useManagementRoles } from "@/store/managementStore";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader } from "@/ui/card";
-import Table, { type ColumnsType } from "antd/es/table";
-import { isNil } from "ramda";
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import { Checkbox } from "@/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import type { Permission_Old } from "#/entity";
 import { BasicStatus, PermissionType } from "#/enum";
-import PermissionModal, { type PermissionModalProps } from "./permission-modal";
 
-const defaultPermissionValue: Permission_Old = {
-	id: "",
-	parentId: "",
-	name: "",
-	label: "",
-	route: "",
-	component: "",
-	icon: "",
-	hide: false,
-	status: BasicStatus.ENABLE,
-	type: PermissionType.CATALOGUE,
-};
+const MODULE_CATALOG = [
+	{ id: "dashboard", name: "Dashboard", route: "/analysis" },
+	{ id: "user", name: "User", route: "/management/system/user" },
+	{ id: "role", name: "Role", route: "/management/system/role" },
+	{ id: "permission", name: "Permission", route: "/management/system/permission" },
+	{ id: "admin_staff", name: "Admin Staff", route: "/management/system/admin-staff" },
+	{ id: "invoices", name: "Invoices", route: "/admin/invoices" },
+	{ id: "reports", name: "Reports", route: "/admin/reports" },
+];
+
+const ACTIONS = ["read", "write"] as const;
+
+const toScope = (moduleId: string, action: (typeof ACTIONS)[number]) => `${moduleId}:${action}`;
+const toTitle = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+
 export default function PermissionPage() {
-	// const permissions = useUserPermission();
-	const { t } = useTranslation();
+	const roles = useManagementRoles();
+	const { assignPermissionsToRole } = useManagementActions();
+	const [selectedRoleId, setSelectedRoleId] = useState<string>("");
+	const [checkedScopes, setCheckedScopes] = useState<string[]>([]);
+	const [saving, setSaving] = useState(false);
 
-	const [permissionModalProps, setPermissionModalProps] = useState<PermissionModalProps>({
-		formValue: { ...defaultPermissionValue },
-		title: "New",
-		show: false,
-		onOk: () => {
-			setPermissionModalProps((prev) => ({ ...prev, show: false }));
-		},
-		onCancel: () => {
-			setPermissionModalProps((prev) => ({ ...prev, show: false }));
-		},
-	});
-	const columns: ColumnsType<Permission_Old> = [
-		{
-			title: "Name",
-			dataIndex: "name",
-			width: 300,
-			render: (_, record) => <div>{t(record.label)}</div>,
-		},
-		{
-			title: "Type",
-			dataIndex: "type",
-			width: 60,
-			render: (_, record) => <Badge variant="info">{PermissionType[record.type]}</Badge>,
-		},
-		{
-			title: "Icon",
-			dataIndex: "icon",
-			width: 60,
-			render: (icon: string) => {
-				if (isNil(icon)) return "";
-				if (icon.startsWith("ic")) {
-					return <Icon icon={`local:${icon}`} size={18} className="ant-menu-item-icon" />;
-				}
-				return <Icon icon={icon} size={18} className="ant-menu-item-icon" />;
-			},
-		},
-		{
-			title: "Component",
-			dataIndex: "component",
-		},
-		{
-			title: "Status",
-			dataIndex: "status",
-			align: "center",
-			width: 120,
-			render: (status) => <Badge variant={status === BasicStatus.DISABLE ? "error" : "success"}>{status === BasicStatus.DISABLE ? "Disable" : "Enable"}</Badge>,
-		},
-		{ title: "Order", dataIndex: "order", width: 60 },
-		{
-			title: "Action",
-			key: "operation",
-			align: "center",
-			width: 100,
-			render: (_, record) => (
-				<div className="flex w-full justify-end text-gray">
-					{record?.type === PermissionType.CATALOGUE && (
-						<Button variant="ghost" size="icon" onClick={() => onCreate(record.id)}>
-							<Icon icon="gridicons:add-outline" size={18} />
-						</Button>
-					)}
-					<Button variant="ghost" size="icon" onClick={() => onEdit(record)}>
-						<Icon icon="solar:pen-bold-duotone" size={18} />
-					</Button>
-					<Button variant="ghost" size="icon">
-						<Icon icon="mingcute:delete-2-fill" size={18} className="text-error!" />
-					</Button>
-				</div>
-			),
-		},
-	];
+	const selectedRole = useMemo(() => roles.find((role) => role.id === selectedRoleId), [roles, selectedRoleId]);
+	const enabledRoles = useMemo(() => roles.filter((role) => role.status === BasicStatus.ENABLE), [roles]);
 
-	const onCreate = (parentId?: string) => {
-		setPermissionModalProps((prev) => ({
-			...prev,
-			show: true,
-			...defaultPermissionValue,
-			title: "New",
-			formValue: { ...defaultPermissionValue, parentId: parentId ?? "" },
-		}));
+	useEffect(() => {
+		if (!selectedRoleId && roles.length > 0) {
+			setSelectedRoleId(roles[0].id);
+		}
+	}, [roles, selectedRoleId]);
+
+	useEffect(() => {
+		const scopes = (selectedRole?.permission || [])
+			.map((permission) => permission.label)
+			.filter((label) => label && label.includes(":")) as string[];
+		setCheckedScopes(scopes);
+	}, [selectedRole]);
+
+	const toggleScope = (scope: string, checked: boolean) => {
+		setCheckedScopes((prev) => (checked ? Array.from(new Set([...prev, scope])) : prev.filter((item) => item !== scope)));
 	};
 
-	const onEdit = (formValue: Permission_Old) => {
-		setPermissionModalProps((prev) => ({
-			...prev,
-			show: true,
-			title: "Edit",
-			formValue,
-		}));
+	const selectedCount = checkedScopes.length;
+
+	const handleSave = async () => {
+		if (!selectedRoleId) {
+			toast.error("Please select role first");
+			return;
+		}
+		setSaving(true);
+		try {
+			const permissions: Permission_Old[] = checkedScopes.map((scope, index) => {
+				const [moduleId, action] = scope.split(":");
+				const module = MODULE_CATALOG.find((item) => item.id === moduleId);
+				return {
+					id: `scope-${moduleId}-${action}`,
+					parentId: "",
+					name: `${module?.name || moduleId} ${toTitle(action)}`,
+					label: scope,
+					type: PermissionType.MENU,
+					route: module?.route || "/",
+					status: BasicStatus.ENABLE,
+					order: index + 1,
+				};
+			});
+			assignPermissionsToRole(selectedRoleId, permissions);
+			toast.success("Permissions attached to role");
+		} finally {
+			setSaving(false);
+		}
 	};
+
 	return (
-		<Card>
-			<CardHeader>
-				<div className="flex items-center justify-between">
-					<div>Permission List</div>
-					<Button onClick={() => onCreate()}>New</Button>
-				</div>
-			</CardHeader>
-			<CardContent>
-				<Table rowKey="id" size="small" scroll={{ x: "max-content" }} pagination={false} columns={columns} dataSource={[]} />
-			</CardContent>
-			<PermissionModal {...permissionModalProps} />
-		</Card>
+		<div className="flex flex-col gap-4">
+			<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+				<Card>
+					<CardContent className="pt-6">
+						<p className="text-xs uppercase text-muted-foreground">Total Roles</p>
+						<p className="text-2xl font-semibold">{roles.length}</p>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardContent className="pt-6">
+						<p className="text-xs uppercase text-muted-foreground">Enabled Roles</p>
+						<p className="text-2xl font-semibold">{enabledRoles.length}</p>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardContent className="pt-6">
+						<p className="text-xs uppercase text-muted-foreground">Selected Permissions</p>
+						<p className="text-2xl font-semibold">{selectedCount}</p>
+					</CardContent>
+				</Card>
+			</div>
+
+			<Card>
+				<CardHeader>
+					<div className="flex flex-wrap items-center justify-between gap-3">
+						<div>
+							<div className="text-base font-semibold">Role Permission Matrix</div>
+							<p className="text-xs text-muted-foreground">
+								Select role, then attach module-level read/write permissions.
+							</p>
+						</div>
+						<div className="flex items-center gap-2">
+							<Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
+								<SelectTrigger className="w-64">
+									<SelectValue placeholder="Select Role" />
+								</SelectTrigger>
+								<SelectContent>
+									{roles.map((role) => (
+										<SelectItem key={role.id} value={role.id}>
+											{role.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							<Badge variant={selectedRole?.status === BasicStatus.DISABLE ? "error" : "success"}>
+								{selectedRole?.status === BasicStatus.DISABLE ? "Disable" : "Enable"}
+							</Badge>
+							<Button onClick={handleSave} disabled={!selectedRoleId || saving}>
+								Save
+							</Button>
+						</div>
+					</div>
+				</CardHeader>
+				<CardContent>
+					<div className="space-y-3">
+						{MODULE_CATALOG.map((module) => (
+							<div key={module.id} className="rounded-md border border-border p-3">
+								<div className="mb-2 text-sm font-medium">{module.name}</div>
+								<div className="flex flex-wrap gap-4">
+									{ACTIONS.map((action) => {
+										const scope = toScope(module.id, action);
+										return (
+											<label key={scope} className="flex items-center gap-2 text-sm">
+												<Checkbox
+													checked={checkedScopes.includes(scope)}
+													onCheckedChange={(checked) => toggleScope(scope, Boolean(checked))}
+												/>
+												<span className="capitalize">{action}</span>
+											</label>
+										);
+									})}
+								</div>
+							</div>
+						))}
+					</div>
+				</CardContent>
+			</Card>
+		</div>
 	);
 }

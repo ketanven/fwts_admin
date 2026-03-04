@@ -1,12 +1,13 @@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/ui/collapsible";
 import { useState } from "react";
 import { useLocation } from "react-router";
+import { isPathActive } from "../path-utils";
 import type { NavListProps } from "../types";
 import { NavItem } from "./nav-item";
 
 export function NavList({ data, depth = 1 }: NavListProps) {
 	const location = useLocation();
-	const isActive = location.pathname.includes(data.path);
+	const isActive = isPathActive(location.pathname, data.path);
 	const [open, setOpen] = useState(isActive);
 	const hasChild = data.children && data.children.length > 0;
 

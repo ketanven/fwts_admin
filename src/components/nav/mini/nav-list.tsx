@@ -1,5 +1,6 @@
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/ui/hover-card";
 import { useLocation } from "react-router";
+import { isPathActive } from "../path-utils";
 import type { NavListProps } from "../types";
 import { NavRootItem } from "./nav-root-item";
 import { NavSubItem } from "./nav-sub-item";
@@ -7,7 +8,7 @@ import { NavSubItem } from "./nav-sub-item";
 export function NavList({ data, depth = 0 }: NavListProps) {
 	const hasChild = data.children && data.children.length > 0;
 	const location = useLocation();
-	const isActive = location.pathname.includes(data.path);
+	const isActive = isPathActive(location.pathname, data.path);
 
 	if (data.hidden) {
 		return null;

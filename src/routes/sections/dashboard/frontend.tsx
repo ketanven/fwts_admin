@@ -32,6 +32,7 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 						{ index: true, element: <Navigate to="permission" replace /> },
 						{ path: "permission", element: Component("/pages/management/system/permission") },
 						{ path: "role", element: Component("/pages/management/system/role") },
+						{ path: "admin-staff", element: Component("/pages/management/system/admin-staff") },
 						{ path: "user", element: Component("/pages/management/system/user") },
 						{ path: "user/:id", element: Component("/pages/management/system/user/detail") },
 						{ path: "user/:id/workspace", element: Component("/pages/management/system/user/workspace") },

@@ -54,6 +54,10 @@ export const frontendNavData: NavProps["data"] = [
 						title: "sys.nav.system.permission",
 						path: "/management/system/permission",
 					},
+					{
+						title: "sys.nav.system.admin_staff",
+						path: "/management/system/admin-staff",
+					},
 				],
 			},
 			// menulevel
