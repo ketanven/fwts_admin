@@ -1,375 +1,390 @@
-import avatar1 from "@/assets/images/avatars/avatar-1.png";
-import avatar2 from "@/assets/images/avatars/avatar-2.png";
-import avatar3 from "@/assets/images/avatars/avatar-3.png";
-import avatar4 from "@/assets/images/avatars/avatar-4.png";
-import avatar5 from "@/assets/images/avatars/avatar-5.png";
 import { Chart, useChart } from "@/components/chart";
 import Icon from "@/components/icon/icon";
 import { GLOBAL_CONFIG } from "@/global-config";
-import { Avatar, AvatarImage } from "@/ui/avatar";
+import { clients, freelancers, invoices, payments, projects, tasks } from "@/pages/admin/data";
+import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
-import { Card, CardContent } from "@/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
 import { Progress } from "@/ui/progress";
 import { Text, Title } from "@/ui/typography";
-import { rgbAlpha } from "@/utils/theme";
-import { useState } from "react";
-import BannerCard from "./banner-card";
-import { freelancers, invoices } from "@/pages/admin/data";
+import { cn } from "@/utils";
 
-const quickStats = [
+const currency = new Intl.NumberFormat("en-IN", {
+	maximumFractionDigits: 0,
+});
+
+const totalRevenue = invoices.reduce((sum, invoice) => sum + invoice.paidAmount, 0);
+const totalPipeline = invoices.reduce((sum, invoice) => sum + Math.max(invoice.amount - invoice.paidAmount, 0), 0);
+const activeFreelancers = freelancers.filter((freelancer) => freelancer.status === "Active").length;
+const activeProjects = projects.filter((project) => project.status === "Active").length;
+const completedTasks = tasks.filter((task) => task.status === "Completed").length;
+const inProgressTasks = tasks.filter((task) => task.status === "In Progress").length;
+const overdueInvoices = invoices.filter((invoice) => invoice.status === "Overdue").length;
+
+const monthlyRevenueSeries = [
 	{
-		icon: "solar:wallet-outline",
-		label: "All Earnings",
-		value: "$3,020",
-		percent: 30.6,
-		color: "#3b82f6",
-		chart: [12, 18, 14, 16, 12, 10, 14, 18, 16, 14, 12, 10],
+		name: "Received",
+		data: [125, 180, 136, 208, 184, 240, 265, 224, 210, 236, 258, 278],
 	},
 	{
-		icon: "solar:graph-outline",
-		label: "Page Views",
-		value: "290K+",
-		percent: 30.6,
-		color: "#f59e42",
-		chart: [8, 12, 10, 14, 18, 16, 14, 12, 10, 14, 18, 16],
-	},
-	{
-		icon: "solar:checklist-outline",
-		label: "Total Task",
-		value: "839",
-		percent: 0,
-		color: "#10b981",
-		chart: [10, 14, 12, 16, 18, 14, 12, 10, 14, 18, 16, 12],
-	},
-	{
-		icon: "solar:download-outline",
-		label: "Download",
-		value: "2,067",
-		percent: -30.6,
-		color: "#ef4444",
-		chart: [16, 14, 12, 10, 14, 18, 16, 12, 10, 14, 18, 16],
+		name: "Invoiced",
+		data: [168, 212, 186, 255, 242, 280, 314, 274, 264, 296, 322, 341],
 	},
 ];
 
-const monthlyRevenue = {
-	series: [
-		{
-			name: "Revenue",
-			data: [30, 40, 35, 50, 49, 70, 91, 60, 50, 55, 60, 65],
-		},
-	],
-	categories: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-	percent: 5.44,
-};
+const monthlyRevenueCategories = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
 
-const projectTasks = [
-	{ label: "Horizontal Layout", color: "#3b82f6" },
-	{ label: "Invoice Generator", color: "#f59e42" },
-	{ label: "Package Upgrades", color: "#fbbf24" },
-	{ label: "Figma Auto Layout", color: "#10b981" },
+const invoiceStatusData = [
+	{ label: "Paid", value: invoices.filter((invoice) => invoice.status === "Paid").length, color: "#16a34a" },
+	{ label: "Sent", value: invoices.filter((invoice) => invoice.status === "Sent").length, color: "#2563eb" },
+	{ label: "Overdue", value: invoices.filter((invoice) => invoice.status === "Overdue").length, color: "#ea580c" },
+	{ label: "Draft", value: invoices.filter((invoice) => invoice.status === "Draft").length, color: "#7c3aed" },
 ];
 
-const projectUsers = [
-	{ avatar: avatar1, name: "John" },
-	{ avatar: avatar2, name: "Wiliam" },
-	{ avatar: avatar3, name: "Kevin" },
-	{ avatar: avatar4, name: "Maciej" },
-	{ avatar: avatar5, name: "Kamil" },
-];
-const transactions = [
-	{ icon: "mdi:spotify", name: "Spotify Music", id: "#T11032", amount: 10000, time: "06:30 pm", status: "up" },
-	{ icon: "mdi:medium", name: "Medium", id: "#T11032", amount: -26, time: "08:30 pm", status: "down" },
-	{ icon: "mdi:uber", name: "Uber", id: "#T11032", amount: 210000, time: "08:40 pm", status: "up" },
-	{ icon: "mdi:taxi", name: "Ola Cabs", id: "#T11032", amount: 210000, time: "07:40 pm", status: "up" },
+const topFreelancers = freelancers
+	.map((freelancer) => ({
+		...freelancer,
+		realization: freelancer.billableHoursMonth * 1800,
+	}))
+	.sort((a, b) => b.realization - a.realization)
+	.slice(0, 3);
+
+const taskDistribution = [
+	{ label: "Completed", value: completedTasks, color: "#22c55e" },
+	{ label: "In Progress", value: inProgressTasks, color: "#3b82f6" },
+	{ label: "Pending", value: tasks.filter((task) => task.status === "Pending").length, color: "#f59e0b" },
 ];
 
-const totalIncome = {
-	series: [44, 55, 41, 17],
-	labels: ["Income", "Download", "Rent", "Views"],
-	details: [
-		{ label: "Income", value: 23876 },
-		{ label: "Download", value: 23876 },
-		{ label: "Rent", value: 23876 },
-		{ label: "Views", value: 23876 },
-	],
-};
+const quickActions = [
+	{ label: "Create Invoice", icon: "solar:bill-list-linear" },
+	{ label: "Add Freelancer", icon: "solar:user-plus-linear" },
+	{ label: "Add Project", icon: "solar:folder-with-files-linear" },
+];
 
-const platformStats = [
-	{ label: "Total Freelancers", value: String(freelancers.length), helper: "Across active workspace" },
-	{ label: "Active Freelancers", value: String(freelancers.filter((f) => f.status === "Active").length), helper: "Currently enabled" },
-	{ label: "Total Invoices", value: String(invoices.length), helper: "All statuses combined" },
+const activityFeed = [
 	{
-		label: "Outstanding Amount",
-		value: `₹${invoices.reduce((sum, invoice) => sum + Math.max(invoice.amount - invoice.paidAmount, 0), 0).toLocaleString()}`,
-		helper: "Pending + overdue",
+		title: "Invoice INV-1012 prepared",
+		detail: "Tronix Systems invoice draft is ready for review",
+		time: "12m ago",
+		icon: "solar:document-add-linear",
+	},
+	{
+		title: "Payment captured",
+		detail: "UPI payment of ₹98,000 posted for INV-1011",
+		time: "44m ago",
+		icon: "solar:wallet-money-linear",
+	},
+	{
+		title: "Task milestone reached",
+		detail: "Client Portal crossed 74% completion",
+		time: "2h ago",
+		icon: "solar:graph-up-linear",
 	},
 ];
+
+function statusTone(status: string) {
+	if (status === "Paid" || status === "Completed" || status === "Active")
+		return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300";
+	if (status === "Overdue" || status === "On Hold") return "bg-orange-500/15 text-orange-700 dark:text-orange-300";
+	if (status === "Draft" || status === "Pending") return "bg-violet-500/15 text-violet-700 dark:text-violet-300";
+	return "bg-blue-500/15 text-blue-700 dark:text-blue-300";
+}
 
 export default function Workbench() {
-	const [activeTab, setActiveTab] = useState("All Transaction");
-	const chartOptions = useChart({
-		xaxis: { categories: monthlyRevenue.categories },
-		chart: { toolbar: { show: false } },
-		grid: { show: false },
-		stroke: { curve: "smooth" },
+	const revenueChartOptions = useChart({
+		xaxis: { categories: monthlyRevenueCategories },
+		stroke: { curve: "smooth", width: 3 },
+		legend: { position: "top", horizontalAlign: "left" },
+		grid: { borderColor: "hsl(var(--border))" },
 		dataLabels: { enabled: false },
-		yaxis: { show: false },
-		legend: { show: false },
-	});
-	const donutOptions = useChart({
-		labels: totalIncome.labels,
-		legend: { show: false },
-		dataLabels: { enabled: false },
-		plotOptions: { pie: { donut: { size: "70%" } } },
+		yaxis: {
+			labels: {
+				formatter: (value: number) => `₹${value}k`,
+			},
+		},
+		tooltip: {
+			y: {
+				formatter: (value: number) => `₹${value}k`,
+			},
+		},
 	});
 
-	// throw new Error("test error"); // 注释掉直接抛错，改用演示组件
+	const invoiceChartOptions = useChart({
+		labels: invoiceStatusData.map((item) => item.label),
+		colors: invoiceStatusData.map((item) => item.color),
+		legend: { show: false },
+		stroke: { show: false },
+		dataLabels: { enabled: false },
+		plotOptions: {
+			pie: {
+				donut: {
+					size: "70%",
+				},
+			},
+		},
+	});
 
-		return (
-		<div className="flex flex-col gap-4 w-full">
-			<BannerCard />
-			<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-				{platformStats.map((stat) => (
-					<Card key={stat.label}>
-						<CardContent className="pt-6">
-							<Text variant="body2" className="text-muted-foreground">
-								{stat.label}
-							</Text>
-							<Title as="h3" className="text-2xl font-bold mt-1">
-								{stat.value}
-							</Title>
-							<Text variant="caption" className="text-muted-foreground mt-2">
-								{stat.helper}
-							</Text>
-						</CardContent>
-					</Card>
-				))}
-			</div>
-			{/* 顶部四个统计卡片 */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-				{quickStats.map((stat) => (
-					<Card key={stat.label} className="flex flex-col justify-between h-full">
-						<CardContent className="flex flex-col gap-2 p-4">
-							<div className="flex items-center gap-2">
-								<div className="rounded-lg p-2" style={{ background: rgbAlpha(stat.color, 0.1) }}>
-									<Icon icon={stat.icon} size={24} color={stat.color} />
-								</div>
-								<Text variant="body2" className="font-semibold">
-									{stat.label}
+	return (
+		<div className="space-y-4">
+			<Card className="relative overflow-hidden border-0 bg-gradient-to-br from-indigo-700 via-blue-700 to-cyan-600 text-white shadow-xl">
+				<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.28),transparent_35%),radial-gradient(circle_at_80%_30%,rgba(255,255,255,0.22),transparent_40%)]" />
+				<CardContent className="relative p-6 md:p-8">
+					<div className="grid gap-6 md:grid-cols-2">
+						<div className="space-y-4">
+							<Badge className="bg-white/20 text-white hover:bg-white/25">Freelancer Work Management</Badge>
+							<div>
+								<Title as="h2" className="text-2xl font-bold md:text-3xl text-white">
+									{GLOBAL_CONFIG.appName} Command Center
+								</Title>
+								<Text className="text-white/90">
+									Track projects, invoices, payouts, and workload in one admin cockpit.
 								</Text>
 							</div>
-							<div className="flex items-center gap-2 mt-2">
-								<Title as="h3" className="text-2xl font-bold">
-									{stat.value}
-								</Title>
-								<span
-									className={`text-xs flex items-center gap-1 font-bold ${stat.percent > 0 ? "text-green-500" : stat.percent < 0 ? "text-red-500" : ""}`}
-								>
-									{stat.percent > 0 ? (
-										<Icon icon="mdi:arrow-up" size={16} />
-									) : stat.percent < 0 ? (
-										<Icon icon="mdi:arrow-down" size={16} />
-									) : null}
-									{stat.percent !== 0 ? `${Math.abs(stat.percent)}%` : stat.label === "Total Task" ? "New" : null}
-								</span>
+							<div className="flex flex-wrap gap-2">
+								{quickActions.map((action) => (
+									<Button
+										key={action.label}
+										size="sm"
+										variant="secondary"
+										className="bg-white/90 text-slate-900 hover:bg-white"
+									>
+										<Icon icon={action.icon} size={18} />
+										{action.label}
+									</Button>
+								))}
 							</div>
-							<div className="w-full h-10 mt-2">
-								<Chart
-									type="bar"
-									height={40}
-									options={useChart({
-										chart: { sparkline: { enabled: true } },
-										colors: [stat.color],
-										grid: { show: false },
-										yaxis: { show: false },
-										tooltip: { enabled: false },
-									})}
-									series={[{ data: stat.chart }]}
-								/>
+						</div>
+						<div className="grid grid-cols-2 gap-3">
+							<div className="rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+								<Text variant="caption" className="text-white/80">
+									Revenue Collected
+								</Text>
+								<Title as="h3" className="mt-1 text-2xl font-bold text-white">
+									₹{currency.format(totalRevenue)}
+								</Title>
+							</div>
+							<div className="rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+								<Text variant="caption" className="text-white/80">
+									Open Pipeline
+								</Text>
+								<Title as="h3" className="mt-1 text-2xl font-bold text-white">
+									₹{currency.format(totalPipeline)}
+								</Title>
+							</div>
+							<div className="rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+								<Text variant="caption" className="text-white/80">
+									Active Freelancers
+								</Text>
+								<Title as="h3" className="mt-1 text-2xl font-bold text-white">
+									{activeFreelancers}/{freelancers.length}
+								</Title>
+							</div>
+							<div className="rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+								<Text variant="caption" className="text-white/80">
+									Overdue Invoices
+								</Text>
+								<Title as="h3" className="mt-1 text-2xl font-bold text-white">
+									{overdueInvoices}
+								</Title>
+							</div>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+
+			<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+				{[
+					{
+						label: "Total Clients",
+						value: clients.length,
+						icon: "solar:users-group-rounded-linear",
+						tone: "text-cyan-600",
+					},
+					{
+						label: "Active Projects",
+						value: activeProjects,
+						icon: "solar:folder-open-linear",
+						tone: "text-indigo-600",
+					},
+					{
+						label: "Tasks In Progress",
+						value: inProgressTasks,
+						icon: "solar:checklist-minimalistic-linear",
+						tone: "text-blue-600",
+					},
+					{
+						label: "Payments Logged",
+						value: payments.length,
+						icon: "solar:card-transfer-linear",
+						tone: "text-emerald-600",
+					},
+				].map((item) => (
+					<Card key={item.label} className="gap-4 py-4">
+						<CardContent className="flex items-center justify-between">
+							<div>
+								<Text variant="body2" className="text-muted-foreground">
+									{item.label}
+								</Text>
+								<Title as="h3" className="mt-1 text-2xl font-bold">
+									{item.value}
+								</Title>
+							</div>
+							<div className="rounded-lg bg-muted p-3">
+								<Icon icon={item.icon} size={20} className={item.tone} />
 							</div>
 						</CardContent>
 					</Card>
 				))}
 			</div>
 
-			{/* 月度收入+项目进度区块 */}
-			<div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-				<Card className="lg:col-span-2">
-					<CardContent className="p-6">
-						<div className="flex items-center justify-between mb-2">
-							<Text variant="body2" className="font-semibold">
-								Monthly Revenue
-							</Text>
-							<span className="flex items-center gap-1 text-green-500 font-bold text-sm">
-								<Icon icon="mdi:arrow-up" size={16} />
-								{monthlyRevenue.percent}%
-							</span>
-						</div>
-						<Chart type="area" height={220} options={chartOptions} series={monthlyRevenue.series} />
+			<div className="grid gap-4 xl:grid-cols-3">
+				<Card className="xl:col-span-2">
+					<CardHeader className="pb-0">
+						<CardTitle>Revenue Flow (12 Months)</CardTitle>
+					</CardHeader>
+					<CardContent className="pt-2">
+						<Chart type="line" height={300} options={revenueChartOptions} series={monthlyRevenueSeries} />
 					</CardContent>
 				</Card>
-				<Card className="flex flex-col gap-4 p-6">
-					<Text variant="body2" className="font-semibold  mb-2">
-						Project - {GLOBAL_CONFIG.appName}
-					</Text>
-					<div className="flex items-center justify-between mb-2">
-						<Text variant="body2">Release v1.2.0</Text>
-						<span className="text-xs font-bold text-blue-500">70%</span>
-					</div>
-					<Progress value={70} />
-					<ul className="flex flex-col gap-2 mt-2 mb-4">
-						{projectTasks.map((task) => (
-							<li key={task.label} className="flex items-center gap-2">
-								<span className="inline-block w-2 h-2 rounded-full" style={{ background: task.color }} />
-								<Text variant="body2">{task.label}</Text>
-							</li>
-						))}
-					</ul>
-					<Button className="w-full mt-auto" size="sm">
-						<Icon icon="mdi:plus" size={18} /> Add task
-					</Button>
-				</Card>
-			</div>
 
-			{/* 项目概览区块 */}
-			<div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-				<Card className="lg:col-span-2 flex flex-col gap-4 p-6">
-					<Text variant="body2" className="font-semibold mb-2">
-						Project overview
-					</Text>
-					<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-						<div>
-							<Text variant="body2">Total Tasks</Text>
-							<Title as="h3" className="text-xl font-bold">
-								34,686
-							</Title>
-						</div>
-						<div>
-							<Text variant="body2">Pending Tasks</Text>
-							<Title as="h3" className="text-xl font-bold">
-								3,786
-							</Title>
-						</div>
-						<div className="flex-1 flex items-center justify-end">
-							<Button className="w-48" size="sm" variant="default">
-								<Icon icon="mdi:plus" size={18} /> Add project
-							</Button>
-						</div>
-					</div>
-					<div className="w-full h-16 mt-4">
+				<Card>
+					<CardHeader className="pb-0">
+						<CardTitle>Invoice Health</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-4 pt-2">
 						<Chart
-							type="line"
-							height={60}
-							options={useChart({
-								chart: { sparkline: { enabled: true } },
-								colors: ["#ef4444"],
-								grid: { show: false },
-								yaxis: { show: false },
-								tooltip: { enabled: false },
-							})}
-							series={[{ data: [10, 20, 15, 30, 25, 40, 35, 20] }]}
+							type="donut"
+							height={220}
+							options={invoiceChartOptions}
+							series={invoiceStatusData.map((item) => item.value)}
 						/>
-					</div>
-				</Card>
-				<Card className="flex flex-col gap-4 p-6 items-center justify-center">
-					<Text variant="body2" className="font-semibold mb-2">
-						{GLOBAL_CONFIG.appName}
-					</Text>
-					<div className="flex -space-x-2 mb-2">
-						{projectUsers.map((user) => (
-							<Avatar key={user.name} className="inline-block w-8 h-8 rounded-full">
-								<AvatarImage src={user.avatar} />
-							</Avatar>
-						))}
-					</div>
-					<Button className="w-10 h-10 rounded-full flex items-center justify-center" size="icon" variant="secondary">
-						<Icon icon="mdi:plus" size={20} />
-					</Button>
-				</Card>
-			</div>
-
-			{/* 交易+收入区块 */}
-			<div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-				<Card className="lg:col-span-2 flex flex-col p-6">
-					<div className="flex items-center gap-4 mb-4">
-						<Text variant="body2" className="font-semibold">
-							Transactions
-						</Text>
-						<div className="flex gap-2">
-							{["All Transaction", "Success", "Pending"].map((tab) => (
-								<Button
-									key={tab}
-									size="sm"
-									variant={activeTab === tab ? "default" : "ghost"}
-									onClick={() => setActiveTab(tab)}
-								>
-									{tab}
-								</Button>
-							))}
-						</div>
-					</div>
-					<div className="flex-1 overflow-x-auto">
-						<table className="w-full text-sm">
-							<tbody>
-								{transactions.map((tx) => (
-									<tr key={tx.name} className="border-b last:border-0">
-										<td className="py-2 w-12">
-											<span className="inline-flex items-center justify-center w-10 h-10 rounded-full">
-												<Icon icon={tx.icon} size={20} />
-											</span>
-										</td>
-										<td className="py-2">
-											<div className="font-semibold">{tx.name}</div>
-											<div className="text-xs">{tx.id}</div>
-										</td>
-										<td className="py-2 text-right font-bold">
-											{tx.amount > 0 ? "+" : "-"}${Math.abs(tx.amount).toLocaleString()}
-										</td>
-										<td className="py-2 text-right">
-											<span className={`text-xs font-bold ${tx.status === "up" ? "text-green-500" : "text-red-500"}`}>
-												{tx.status === "up" ? (
-													<Icon icon="mdi:arrow-up" size={14} />
-												) : (
-													<Icon icon="mdi:arrow-down" size={14} />
-												)}{" "}
-												{tx.status === "up" ? "+" : "-"}10.6%
-											</span>
-										</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
-					</div>
-					<div className="flex items-center justify-between mt-4 gap-2">
-						<Button variant="outline" className="flex-1">
-							View all
-						</Button>
-						<Button className="flex-1">Create new</Button>
-					</div>
-				</Card>
-				<Card className="flex flex-col p-6">
-					<Text variant="body2" className="font-semibold  mb-2">
-						Total Income
-					</Text>
-					<div className="flex-1 flex flex-col items-center justify-center">
-						<Chart type="donut" height={180} options={donutOptions} series={totalIncome.series} />
-						<div className="w-full mt-4">
-							{totalIncome.details.map((item, i) => (
-								<div key={item.label} className="flex items-center justify-between mb-2">
+						<div className="space-y-2">
+							{invoiceStatusData.map((item) => (
+								<div key={item.label} className="flex items-center justify-between text-sm">
 									<div className="flex items-center gap-2">
-										<span
-											className={"inline-block w-3 h-3 rounded-full"}
-											style={{ background: ["#3b82f6", "#f59e42", "#10b981", "#6366f1"][i] }}
-										/>
-										<Text variant="body2">{item.label}</Text>
+										<span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+										<span>{item.label}</span>
 									</div>
-									<span className="font-bold">${item.value.toLocaleString()}</span>
+									<span className="font-semibold">{item.value}</span>
 								</div>
 							))}
 						</div>
-					</div>
+					</CardContent>
 				</Card>
 			</div>
+
+			<div className="grid gap-4 xl:grid-cols-3">
+				<Card>
+					<CardHeader className="pb-2">
+						<CardTitle>Freelancer Realization</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						{topFreelancers.map((freelancer) => {
+							const utilization = Math.min(Math.round((freelancer.billableHoursMonth / 160) * 100), 100);
+							return (
+								<div key={freelancer.id} className="space-y-2 rounded-lg border bg-muted/30 p-3">
+									<div className="flex items-center justify-between gap-2">
+										<div>
+											<Text className="font-medium">{freelancer.name}</Text>
+											<Text variant="caption" className="text-muted-foreground">
+												{freelancer.activeProjects} active projects
+											</Text>
+										</div>
+										<Badge className={cn("font-medium", statusTone(freelancer.status))}>{freelancer.status}</Badge>
+									</div>
+									<div className="flex items-center justify-between text-xs text-muted-foreground">
+										<span>{freelancer.billableHoursMonth}h billed</span>
+										<span>₹{currency.format(freelancer.realization)}</span>
+									</div>
+									<Progress value={utilization} />
+								</div>
+							);
+						})}
+					</CardContent>
+				</Card>
+
+				<Card>
+					<CardHeader className="pb-2">
+						<CardTitle>Task Distribution</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						{taskDistribution.map((item) => {
+							const total = tasks.length || 1;
+							const percentage = Math.round((item.value / total) * 100);
+							return (
+								<div key={item.label} className="space-y-2">
+									<div className="flex items-center justify-between text-sm">
+										<div className="flex items-center gap-2">
+											<span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+											<span>{item.label}</span>
+										</div>
+										<span className="font-semibold">{item.value}</span>
+									</div>
+									<Progress value={percentage} />
+								</div>
+							);
+						})}
+					</CardContent>
+				</Card>
+
+				<Card>
+					<CardHeader className="pb-2">
+						<CardTitle>Live Activity</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-3">
+						{activityFeed.map((item) => (
+							<div key={item.title} className="flex gap-3 rounded-lg border bg-muted/20 p-3">
+								<div className="mt-0.5 rounded-md bg-primary/10 p-2 text-primary">
+									<Icon icon={item.icon} size={18} />
+								</div>
+								<div className="min-w-0">
+									<Text className="font-medium">{item.title}</Text>
+									<Text variant="caption" className="text-muted-foreground">
+										{item.detail}
+									</Text>
+									<Text variant="caption" className="block text-muted-foreground/80">
+										{item.time}
+									</Text>
+								</div>
+							</div>
+						))}
+					</CardContent>
+				</Card>
+			</div>
+
+			<Card>
+				<CardHeader className="pb-2">
+					<CardTitle>Recent Invoices</CardTitle>
+				</CardHeader>
+				<CardContent className="overflow-x-auto">
+					<table className="w-full min-w-[700px] text-sm">
+						<thead>
+							<tr className="border-b text-muted-foreground">
+								<th className="py-3 text-left font-medium">Invoice</th>
+								<th className="py-3 text-left font-medium">Client</th>
+								<th className="py-3 text-left font-medium">Project</th>
+								<th className="py-3 text-left font-medium">Amount</th>
+								<th className="py-3 text-left font-medium">Due Date</th>
+								<th className="py-3 text-left font-medium">Status</th>
+							</tr>
+						</thead>
+						<tbody>
+							{invoices.map((invoice) => (
+								<tr key={invoice.id} className="border-b last:border-b-0">
+									<td className="py-3 font-medium">{invoice.id}</td>
+									<td className="py-3">{invoice.clientName}</td>
+									<td className="py-3">{invoice.projectName}</td>
+									<td className="py-3">₹{currency.format(invoice.amount)}</td>
+									<td className="py-3">{invoice.dueDate}</td>
+									<td className="py-3">
+										<Badge className={cn("font-medium", statusTone(invoice.status))}>{invoice.status}</Badge>
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</CardContent>
+			</Card>
 		</div>
 	);
 }
