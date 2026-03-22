@@ -17,6 +17,7 @@ type UserStore = {
 		setUserInfo: (userInfo: UserInfo) => void;
 		setUserToken: (token: UserToken) => void;
 		clearUserInfoAndToken: () => void;
+		fetchUserProfile: () => Promise<void>;
 	};
 };
 
@@ -35,6 +36,14 @@ const useUserStore = create<UserStore>()(
 				clearUserInfoAndToken() {
 					set({ userInfo: {}, userToken: {} });
 				},
+				fetchUserProfile: async () => {
+					try {
+						const profile = await adminAuthService.getProfile();
+						set({ userInfo: profile as unknown as UserInfo });
+					} catch (error) {
+						console.error("Failed to fetch user profile:", error);
+					}
+				},
 			},
 		}),
 		{
@@ -50,8 +59,11 @@ const useUserStore = create<UserStore>()(
 
 export const useUserInfo = () => useUserStore((state) => state.userInfo);
 export const useUserToken = () => useUserStore((state) => state.userToken);
-export const useUserPermissions = () => useUserStore((state) => state.userInfo.permissions || []);
-export const useUserRoles = () => useUserStore((state) => state.userInfo.roles || []);
+export const useUserPermissions = () => useUserStore((state) => state.userInfo.role?.permissions || []);
+export const useUserRoles = () => {
+	const role = useUserStore((state) => state.userInfo.role);
+	return role ? [role] : [];
+};
 export const useUserActions = () => useUserStore((state) => state.actions);
 
 export const useSignIn = () => {

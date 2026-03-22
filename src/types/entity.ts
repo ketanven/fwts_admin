@@ -9,13 +9,17 @@ export interface UserToken {
 export interface UserInfo {
 	id: string;
 	email: string;
-	username: string;
+	username?: string;
+	first_name?: string;
+	last_name?: string;
 	password?: string;
 	avatar?: string;
-	roles?: Role[];
+	role?: {
+		id: string;
+		name: string;
+		permissions: string[];
+	};
 	status?: BasicStatus;
-	permissions?: Permission[];
-	menu?: MenuTree[];
 }
 
 export interface Permission_Old {

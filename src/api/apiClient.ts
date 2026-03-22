@@ -27,12 +27,16 @@ axiosInstance.interceptors.response.use(
 	(res: AxiosResponse<Result<any>>) => {
 		if (!res.data) throw new Error(t("sys.api.apiRequestFailed"));
 		// Support both legacy { status, data, message } and raw REST responses
-		if (typeof res.data === "object" && "status" in res.data) {
-			const { status, data, message } = res.data as Result<any>;
-			if (status === ResultStatus.SUCCESS || (typeof status === "number" && status >= 200 && status < 300)) {
-				return data;
+		if (typeof res.data === "object" && ("status" in res.data || "success" in res.data)) {
+			const dataObj = res.data as any;
+			const isSuccess = dataObj.status === ResultStatus.SUCCESS || 
+				(typeof dataObj.status === "number" && dataObj.status >= 200 && dataObj.status < 300) ||
+				dataObj.success === true;
+			
+			if (isSuccess) {
+				return dataObj.data !== undefined ? dataObj.data : dataObj;
 			}
-			throw new Error(message || t("sys.api.apiRequestFailed"));
+			throw new Error(dataObj.message || t("sys.api.apiRequestFailed"));
 		}
 		return res.data;
 	},

@@ -4,6 +4,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/ui/input";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import adminAuthService from "@/api/services/adminAuthService";
 
 type FieldType = {
 	oldPassword: string;
@@ -20,9 +21,19 @@ export default function SecurityTab() {
 		},
 	});
 
-	const handleSubmit = () => {
-		// Handle form submission here
-		toast.success("Update success!");
+	const handleSubmit = async () => {
+		try {
+			const data = form.getValues();
+			await adminAuthService.changePassword({
+				old_password: data.oldPassword,
+				new_password: data.newPassword,
+				confirm_password: data.confirmPassword,
+			});
+			toast.success("Password changed successfully!");
+			form.reset();
+		} catch (error: any) {
+			toast.error(error?.message || "Failed to change password");
+		}
 	};
 
 	return (

@@ -1,5 +1,6 @@
 import { Icon } from "@/components/icon";
-import { useManagementActions, useManagementAdminStaff, useManagementRoles } from "@/store/managementStore";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import roleService from "@/api/services/roleService";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader } from "@/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/ui/dialog";
@@ -7,45 +8,86 @@ import { Input } from "@/ui/input";
 import Table, { type ColumnsType } from "antd/es/table";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import type { Role_Old } from "#/entity";
-import { BasicStatus } from "#/enum";
-import { RoleModal, type RoleModalProps } from "./role-modal";
+import { RoleModal } from "./role-modal";
 
-const DEFAULT_ROLE_VALUE: Role_Old = {
-	id: "",
+export interface RoleData {
+	id: string;
+	name: string;
+	permissions_count: number;
+	assigned_admins_count: number;
+	created_at: string;
+}
+
+const DEFAULT_ROLE_VALUE: Partial<RoleData> = {
 	name: "",
-	code: "",
-	status: BasicStatus.ENABLE,
-	permission: [],
 };
 
 export default function RolePage() {
-	const roles = useManagementRoles();
-	const adminStaff = useManagementAdminStaff();
-	const { createRole, updateRole, removeRole } = useManagementActions();
+	const queryClient = useQueryClient();
+	const { data: rolesResponse, isLoading } = useQuery({
+		queryKey: ["roles"],
+		queryFn: roleService.listRoles,
+	});
 
-	const [saving, setSaving] = useState(false);
+	const roles = (rolesResponse as unknown as RoleData[]) || [];
+
+	const createMutation = useMutation({
+		mutationFn: roleService.createRole,
+		onSuccess: () => {
+			toast.success("Role created");
+			queryClient.invalidateQueries({ queryKey: ["roles"] });
+			setRoleModalProps((prev: any) => ({ ...prev, show: false }));
+		},
+		onError: (error: any) => {
+			toast.error(error?.message || "Failed to create role");
+		},
+	});
+
+	const updateMutation = useMutation({
+		mutationFn: ({ id, data }: { id: string; data: any }) => roleService.updateRole(id, data),
+		onSuccess: () => {
+			toast.success("Role updated");
+			queryClient.invalidateQueries({ queryKey: ["roles"] });
+			setRoleModalProps((prev: any) => ({ ...prev, show: false }));
+		},
+		onError: (error: any) => {
+			toast.error(error?.message || "Failed to update role");
+		},
+	});
+
+	const deleteMutation = useMutation({
+		mutationFn: roleService.deleteRole,
+		onSuccess: () => {
+			toast.success("Role deleted");
+			queryClient.invalidateQueries({ queryKey: ["roles"] });
+			setConfirmRole(null);
+		},
+		onError: (error: any) => {
+			toast.error(error?.message || "Failed to delete role");
+		},
+	});
+
 	const [query, setQuery] = useState("");
-	const [roleModalProps, setRoleModalProps] = useState<RoleModalProps>({
+	const [roleModalProps, setRoleModalProps] = useState<any>({
 		formValue: { ...DEFAULT_ROLE_VALUE },
 		title: "Create Role",
 		show: false,
 		onOk: async () => {},
 		onCancel: () => {
-			setRoleModalProps((prev) => ({ ...prev, show: false }));
+			setRoleModalProps((prev: any) => ({ ...prev, show: false }));
 		},
 	});
-	const [confirmRole, setConfirmRole] = useState<Role_Old | null>(null);
+	const [confirmRole, setConfirmRole] = useState<RoleData | null>(null);
 
 	const filteredRoles = useMemo(() => {
 		const key = query.trim().toLowerCase();
 		if (!key) return roles;
 		return roles.filter((role) => {
-			return role.name.toLowerCase().includes(key) || role.code.toLowerCase().includes(key) || (role.desc || "").toLowerCase().includes(key);
+			return role.name.toLowerCase().includes(key);
 		});
 	}, [roles, query]);
 
-	const columns: ColumnsType<Role_Old> = [
+	const columns: ColumnsType<RoleData> = [
 		{
 			title: "Name",
 			dataIndex: "name",
@@ -53,17 +95,15 @@ export default function RolePage() {
 		},
 		{
 			title: "Assigned Admins",
-			key: "assigned",
+			dataIndex: "assigned_admins_count",
 			width: 150,
 			align: "center",
-			render: (_, record) => adminStaff.filter((member) => member.role_id === record.id).length,
 		},
 		{
 			title: "Permissions",
-			key: "permissions",
+			dataIndex: "permissions_count",
 			width: 120,
 			align: "center",
-			render: (_, record) => record.permission?.length || 0,
 		},
 		{
 			title: "Action",
@@ -83,95 +123,46 @@ export default function RolePage() {
 		},
 	];
 
-	const hasDuplicateCode = (code: string, currentId?: string) => {
-		return roles.some((role) => role.code.toLowerCase() === code.toLowerCase() && role.id !== currentId);
-	};
-
-	const makeCode = (name: string) =>
-		name
-			.trim()
-			.toUpperCase()
-			.replace(/[^A-Z0-9]+/g, "_")
-			.replace(/^_+|_+$/g, "");
-
 	const onCreate = () => {
-		setRoleModalProps((prev) => ({
+		setRoleModalProps((prev: any) => ({
 			...prev,
 			show: true,
 			title: "Create Role",
 			formValue: { ...DEFAULT_ROLE_VALUE },
-			onOk: async (values) => {
-				const cleanCode = makeCode(values.name);
-				if (!cleanCode) {
+			onOk: async (values: any) => {
+				if (!values.name?.trim()) {
 					toast.error("Role name is required");
 					return;
 				}
-				if (hasDuplicateCode(cleanCode)) {
-					toast.error("Role code already exists");
-					return;
-				}
-				setSaving(true);
-				try {
-					createRole({
-						...values,
-						id: "",
-						code: cleanCode,
-						name: values.name.trim(),
-						status: BasicStatus.ENABLE,
-					});
-					setRoleModalProps((current) => ({ ...current, show: false }));
-					toast.success("Role created");
-				} finally {
-					setSaving(false);
-				}
+				createMutation.mutate({ name: values.name.trim() });
 			},
 		}));
 	};
 
-	const onEdit = (formValue: Role_Old) => {
-		setRoleModalProps((prev) => ({
+	const onEdit = (formValue: RoleData) => {
+		setRoleModalProps((prev: any) => ({
 			...prev,
 			show: true,
 			title: "Edit Role",
 			formValue,
-			onOk: async (values) => {
-				const cleanCode = makeCode(values.name);
-				if (!cleanCode) {
+			onOk: async (values: any) => {
+				if (!values.name?.trim()) {
 					toast.error("Role name is required");
 					return;
 				}
-				if (hasDuplicateCode(cleanCode, formValue.id)) {
-					toast.error("Role code already exists");
-					return;
-				}
-				setSaving(true);
-				try {
-					updateRole(formValue.id, {
-						...values,
-						id: formValue.id,
-						code: cleanCode,
-						name: values.name.trim(),
-						status: formValue.status ?? BasicStatus.ENABLE,
-					});
-					setRoleModalProps((current) => ({ ...current, show: false }));
-					toast.success("Role updated");
-				} finally {
-					setSaving(false);
-				}
+				updateMutation.mutate({ id: formValue.id, data: { name: values.name.trim() } });
 			},
 		}));
 	};
 
 	const onDelete = () => {
 		if (!confirmRole) return;
-		const assignedCount = adminStaff.filter((member) => member.role_id === confirmRole.id).length;
-		if (assignedCount > 0) {
+		if (confirmRole.assigned_admins_count > 0) {
 			toast.error("Cannot delete role assigned to admin staff");
+			setConfirmRole(null);
 			return;
 		}
-		removeRole(confirmRole.id);
-		toast.success("Role deleted");
-		setConfirmRole(null);
+		deleteMutation.mutate(confirmRole.id);
 	};
 
 	return (
@@ -186,9 +177,9 @@ export default function RolePage() {
 				</div>
 			</CardHeader>
 			<CardContent>
-				<Table rowKey="id" size="small" scroll={{ x: "max-content" }} pagination={false} columns={columns} dataSource={filteredRoles} />
+				<Table rowKey="id" size="small" scroll={{ x: "max-content" }} pagination={false} columns={columns} dataSource={filteredRoles} loading={isLoading} />
 			</CardContent>
-			<RoleModal {...roleModalProps} loading={saving} />
+			<RoleModal {...roleModalProps} loading={createMutation.isPending || updateMutation.isPending} />
 
 			<Dialog open={Boolean(confirmRole)} onOpenChange={(open) => !open && setConfirmRole(null)}>
 				<DialogContent>

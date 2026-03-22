@@ -1,5 +1,8 @@
 import { Icon } from "@/components/icon";
-import { useManagementActions, useManagementAdminStaff, useManagementRoles } from "@/store/managementStore";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import adminStaffService from "@/api/services/adminStaffService";
+import roleService from "@/api/services/roleService";
+import type { RoleData } from "../role";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader } from "@/ui/card";
@@ -13,21 +16,38 @@ import { toast } from "sonner";
 import { BasicStatus } from "#/enum";
 import AdminStaffModal, { type AdminStaffFormValues, type AdminStaffModalProps } from "./admin-staff-modal";
 
+export interface AdminStaffData {
+	id: string;
+	first_name: string;
+	last_name: string;
+	email: string;
+	is_active: boolean;
+	role?: { id: string; name: string };
+	created_at: string;
+	phone?: string;
+	last_login?: string;
+}
+
 const DEFAULT_FORM_VALUE: AdminStaffFormValues = {
 	first_name: "",
 	last_name: "",
 	email: "",
+	password: "",
+	confirmPassword: "",
 	phone: "",
 	role_id: "",
 	status: BasicStatus.ENABLE,
 };
 
 export default function AdminStaffPage() {
-	const roles = useManagementRoles();
-	const adminStaff = useManagementAdminStaff();
-	const { createAdminStaff, updateAdminStaff, removeAdminStaff } = useManagementActions();
+	const queryClient = useQueryClient();
 
-	const [saving, setSaving] = useState(false);
+	const { data: rolesResp } = useQuery({ queryKey: ["roles"], queryFn: roleService.listRoles });
+	const { data: staffResp, isLoading } = useQuery({ queryKey: ["staff"], queryFn: adminStaffService.listStaff });
+
+	const roles = (rolesResp as unknown as RoleData[]) || [];
+	const adminStaff = (staffResp as unknown as AdminStaffData[]) || [];
+
 	const [query, setQuery] = useState("");
 	const [roleFilter, setRoleFilter] = useState<string>("all");
 	const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -38,34 +58,70 @@ export default function AdminStaffPage() {
 		roles: [],
 		onOk: async () => {},
 		onCancel: () => {
-			setModalProps((prev) => ({ ...prev, show: false }));
+			setModalProps((prev: any) => ({ ...prev, show: false }));
 		},
 	});
 	const [confirmTarget, setConfirmTarget] = useState<string | null>(null);
 
-	const roleMap = useMemo(() => new Map(roles.map((role) => [role.id, role])), [roles]);
+	const createMutation = useMutation({
+		mutationFn: adminStaffService.createStaff,
+		onSuccess: () => {
+			toast.success("Admin staff created");
+			queryClient.invalidateQueries({ queryKey: ["staff"] });
+			setModalProps((prev: any) => ({ ...prev, show: false }));
+		},
+		onError: (error: any) => {
+			toast.error(error?.message || "Failed to create staff");
+		},
+	});
+
+	const updateMutation = useMutation({
+		mutationFn: ({ id, data }: { id: string; data: any }) => adminStaffService.updateStaff(id, data),
+		onSuccess: () => {
+			toast.success("Admin staff updated");
+			queryClient.invalidateQueries({ queryKey: ["staff"] });
+			setModalProps((prev: any) => ({ ...prev, show: false }));
+		},
+		onError: (error: any) => {
+			toast.error(error?.message || "Failed to update staff");
+		},
+	});
+
+	const deleteMutation = useMutation({
+		mutationFn: adminStaffService.deleteStaff,
+		onSuccess: () => {
+			toast.success("Admin staff removed");
+			queryClient.invalidateQueries({ queryKey: ["staff"] });
+			setConfirmTarget(null);
+		},
+		onError: (error: any) => {
+			toast.error(error?.message || "Failed to remove staff");
+		},
+	});
+
 	const roleOptions = useMemo(
-		() => roles.map((role) => ({ id: role.id, name: role.name, status: role.status })),
+		() => roles.map((role) => ({ id: role.id, name: role.name, status: BasicStatus.ENABLE })),
 		[roles],
 	);
 
 	const filteredData = useMemo(() => {
 		const key = query.trim().toLowerCase();
 		return adminStaff.filter((member) => {
-			const role = roleMap.get(member.role_id);
+			const roleName = member.role?.name || "";
 			const matchesSearch =
 				!key ||
 				`${member.first_name} ${member.last_name}`.toLowerCase().includes(key) ||
 				member.email.toLowerCase().includes(key) ||
-				(role?.name || "").toLowerCase().includes(key);
-			const matchesRole = roleFilter === "all" || member.role_id === roleFilter;
-			const matchesStatus = statusFilter === "all" || String(member.status) === statusFilter;
+				roleName.toLowerCase().includes(key);
+			const matchesRole = roleFilter === "all" || member.role?.id === roleFilter;
+			const memberStatus = member.is_active ? String(BasicStatus.ENABLE) : String(BasicStatus.DISABLE);
+			const matchesStatus = statusFilter === "all" || memberStatus === statusFilter;
 			return matchesSearch && matchesRole && matchesStatus;
 		});
-	}, [adminStaff, query, roleFilter, statusFilter, roleMap]);
+	}, [adminStaff, query, roleFilter, statusFilter]);
 
-	const enabledRolesCount = roles.filter((role) => role.status === BasicStatus.ENABLE).length;
-	const activeAdminsCount = adminStaff.filter((member) => member.status === BasicStatus.ENABLE).length;
+	const enabledRolesCount = roles.length;
+	const activeAdminsCount = adminStaff.filter((member) => member.is_active).length;
 
 	const columns: ColumnsType<(typeof filteredData)[number]> = [
 		{
@@ -81,9 +137,9 @@ export default function AdminStaffPage() {
 		},
 		{
 			title: "Role",
-			dataIndex: "role_id",
+			key: "role",
 			width: 180,
-			render: (roleId: string) => roleMap.get(roleId)?.name || "-",
+			render: (_, record) => record.role?.name || "-",
 		},
 		{
 			title: "Phone",
@@ -99,12 +155,12 @@ export default function AdminStaffPage() {
 		},
 		{
 			title: "Status",
-			dataIndex: "status",
+			dataIndex: "is_active",
 			width: 120,
 			align: "center",
-			render: (status: BasicStatus) => (
-				<Badge variant={status === BasicStatus.DISABLE ? "error" : "success"}>
-					{status === BasicStatus.DISABLE ? "Disable" : "Enable"}
+			render: (isActive: boolean) => (
+				<Badge variant={!isActive ? "error" : "success"}>
+					{!isActive ? "Disable" : "Enable"}
 				</Badge>
 			),
 		},
@@ -135,30 +191,26 @@ export default function AdminStaffPage() {
 			toast.error("Please create at least one role first");
 			return;
 		}
-		setModalProps((prev) => ({
+		setModalProps((prev: any) => ({
 			...prev,
 			show: true,
 			title: "Create Admin Staff",
 			formValue: { ...DEFAULT_FORM_VALUE, role_id: roleOptions[0].id },
 			roles: roleOptions,
-			onOk: async (values) => {
+			onOk: async (values: any) => {
 				if (hasDuplicateEmail(values.email)) {
 					return { fieldErrors: { email: ["Email already exists"] } };
 				}
-				setSaving(true);
-				try {
-					createAdminStaff({
-						...values,
-						first_name: values.first_name.trim(),
-						last_name: values.last_name.trim(),
-						email: values.email.trim().toLowerCase(),
-						created_by: "Master Admin",
-					});
-					setModalProps((current) => ({ ...current, show: false }));
-					toast.success("Admin staff created");
-				} finally {
-					setSaving(false);
-				}
+				const { password, confirmPassword, ...restValues } = values;
+				createMutation.mutate({
+					...restValues,
+					first_name: restValues.first_name.trim(),
+					last_name: restValues.last_name.trim(),
+					email: restValues.email.trim().toLowerCase(),
+					password,
+					role: restValues.role_id,
+					is_active: restValues.status === BasicStatus.ENABLE,
+				});
 			},
 		}));
 	};
@@ -166,7 +218,7 @@ export default function AdminStaffPage() {
 	const onEdit = (id: string) => {
 		const target = adminStaff.find((member) => member.id === id);
 		if (!target) return;
-		setModalProps((prev) => ({
+		setModalProps((prev: any) => ({
 			...prev,
 			show: true,
 			title: "Edit Admin Staff",
@@ -176,38 +228,38 @@ export default function AdminStaffPage() {
 				last_name: target.last_name,
 				email: target.email,
 				phone: target.phone || "",
-				role_id: target.role_id,
-				status: target.status,
+				role_id: target.role?.id || "",
+				status: target.is_active ? BasicStatus.ENABLE : BasicStatus.DISABLE,
 			},
 			roles: roleOptions,
-			onOk: async (values) => {
+			onOk: async (values: any) => {
 				if (hasDuplicateEmail(values.email, id)) {
 					return { fieldErrors: { email: ["Email already exists"] } };
 				}
-				setSaving(true);
-				try {
-					updateAdminStaff(id, {
-						...values,
-						first_name: values.first_name.trim(),
-						last_name: values.last_name.trim(),
-						email: values.email.trim().toLowerCase(),
-						created_by: target.created_by,
-						last_login: target.last_login,
-					});
-					setModalProps((current) => ({ ...current, show: false }));
-					toast.success("Admin staff updated");
-				} finally {
-					setSaving(false);
+				const { password, confirmPassword, ...restValues } = values;
+				
+				const payload: any = {
+					first_name: restValues.first_name.trim(),
+					last_name: restValues.last_name.trim(),
+					email: restValues.email.trim().toLowerCase(),
+					role: restValues.role_id,
+					is_active: restValues.status === BasicStatus.ENABLE,
+				};
+				if (password) {
+					payload.password = password;
 				}
+
+				updateMutation.mutate({
+					id,
+					data: payload,
+				});
 			},
 		}));
 	};
 
 	const onDelete = () => {
 		if (!confirmTarget) return;
-		removeAdminStaff(confirmTarget);
-		setConfirmTarget(null);
-		toast.success("Admin staff removed");
+		deleteMutation.mutate(confirmTarget);
 	};
 
 	return (
@@ -285,11 +337,11 @@ export default function AdminStaffPage() {
 							Reset
 						</Button>
 					</div>
-					<Table rowKey="id" size="small" scroll={{ x: "max-content" }} pagination={{ pageSize: 8 }} columns={columns} dataSource={filteredData} />
+					<Table rowKey="id" size="small" scroll={{ x: "max-content" }} pagination={{ pageSize: 8 }} columns={columns} dataSource={filteredData} loading={isLoading} />
 				</CardContent>
 			</Card>
 
-			<AdminStaffModal {...modalProps} loading={saving} />
+			<AdminStaffModal {...modalProps} loading={createMutation.isPending || updateMutation.isPending} />
 
 			<Dialog open={Boolean(confirmTarget)} onOpenChange={(open) => !open && setConfirmTarget(null)}>
 				<DialogContent>

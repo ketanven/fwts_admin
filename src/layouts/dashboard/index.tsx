@@ -1,6 +1,7 @@
 import Logo from "@/components/logo";
 import { down, useMediaQuery } from "@/hooks";
 import { useSettings } from "@/store/settingStore";
+import { useUserPermissions } from "@/store/userStore";
 import { ThemeLayout } from "#/enum";
 import Header from "./header";
 import Main from "./main";
@@ -8,6 +9,17 @@ import { NavHorizontalLayout, NavMobileLayout, NavVerticalLayout, useFilteredNav
 
 export default function DashboardLayout() {
 	const isMobile = useMediaQuery(down("md"));
+	const permissions = useUserPermissions();
+
+	// If the user has zero permissions, render a minimal layout with no sidebar
+	if (!permissions || permissions.length === 0) {
+		return (
+			<div data-slot="slash-layout-root" className="w-full min-h-screen bg-background">
+				<Header />
+				<Main />
+			</div>
+		);
+	}
 
 	return (
 		<div data-slot="slash-layout-root" className="w-full min-h-screen bg-background">
@@ -73,3 +85,4 @@ function PcVerticalLayout() {
 		</>
 	);
 }
+

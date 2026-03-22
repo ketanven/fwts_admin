@@ -1,8 +1,21 @@
 import Character from "@/assets/images/characters/character_2.png";
+import { useUserPermissions, useUserActions } from "@/store/userStore";
 import { themeVars } from "@/theme/theme.css";
+import { Button } from "@/ui/button";
+import { useNavigate } from "react-router";
 import ErrorLayout from "./components/ErrorLayout";
 
 export default function Page403() {
+	const permissions = useUserPermissions();
+	const { clearUserInfoAndToken } = useUserActions();
+	const navigate = useNavigate();
+	const hasNoPermissions = !permissions || permissions.length === 0;
+
+	const handleLogout = () => {
+		clearUserInfoAndToken();
+		navigate("/", { replace: true });
+	};
+
 	const svg = (
 		<svg viewBox="0 0 480 360" xmlns="http://www.w3.org/2000/svg" width={400} height={400} className="w-full">
 			<title>403</title>
@@ -65,12 +78,25 @@ export default function Page403() {
 			</defs>
 		</svg>
 	);
+
 	return (
 		<ErrorLayout
 			title="Access Denied"
 			helmetTitle="403 Access Denied!"
-			desc="You do not have permission to access this resource."
+			desc="You do not have permission to access this resource. Please contact your administrator."
 			svg={svg}
+			slots={
+				hasNoPermissions
+					? {
+							footer: (
+								<Button size="lg" variant="destructive" className="mt-4" onClick={handleLogout}>
+									Logout
+								</Button>
+							),
+						}
+					: undefined
+			}
 		/>
 	);
 }
+

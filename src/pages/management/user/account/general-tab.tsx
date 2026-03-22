@@ -10,9 +10,12 @@ import { Text } from "@/ui/typography";
 import { faker } from "@faker-js/faker";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import adminAuthService from "@/api/services/adminAuthService";
+import { useUserActions } from "@/store/userStore";
 
 type FieldType = {
-	name?: string;
+	first_name?: string;
+	last_name?: string;
 	email?: string;
 	phone?: string;
 	address?: string;
@@ -22,10 +25,12 @@ type FieldType = {
 };
 
 export default function GeneralTab() {
-	const { avatar, username, email } = useUserInfo();
+	const { avatar, first_name, last_name, email } = useUserInfo();
+	const { fetchUserProfile } = useUserActions();
 	const form = useForm<FieldType>({
 		defaultValues: {
-			name: username,
+			first_name: first_name || "",
+			last_name: last_name || "",
 			email,
 			phone: faker.phone.number(),
 			address: faker.location.county(),
@@ -35,8 +40,18 @@ export default function GeneralTab() {
 		},
 	});
 
-	const handleClick = () => {
-		toast.success("Update success!");
+	const handleClick = async () => {
+		try {
+			const data = form.getValues();
+			await adminAuthService.updateProfile({
+				first_name: data.first_name,
+				last_name: data.last_name,
+			});
+			toast.success("Profile updated successfully!");
+			fetchUserProfile(); // Refresh store with new values
+		} catch (error: any) {
+			toast.error("Failed to update profile");
+		}
 	};
 
 	return (
@@ -62,10 +77,22 @@ export default function GeneralTab() {
 							<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 								<FormField
 									control={form.control}
-									name="name"
+									name="first_name"
 									render={({ field }) => (
 										<FormItem>
-											<FormLabel>Username</FormLabel>
+											<FormLabel>First Name</FormLabel>
+											<FormControl>
+												<Input {...field} />
+											</FormControl>
+										</FormItem>
+									)}
+								/>
+								<FormField
+									control={form.control}
+									name="last_name"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Last Name</FormLabel>
 											<FormControl>
 												<Input {...field} />
 											</FormControl>

@@ -1,38 +1,34 @@
-import { useManagementActions, useManagementRoles } from "@/store/managementStore";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader } from "@/ui/card";
 import { Checkbox } from "@/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { Permission_Old } from "#/entity";
-import { BasicStatus, PermissionType } from "#/enum";
-
-const MODULE_CATALOG = [
-	{ id: "dashboard", name: "Dashboard", route: "/analysis" },
-	{ id: "user", name: "User", route: "/management/system/user" },
-	{ id: "role", name: "Role", route: "/management/system/role" },
-	{ id: "permission", name: "Permission", route: "/management/system/permission" },
-	{ id: "admin_staff", name: "Admin Staff", route: "/management/system/admin-staff" },
-	{ id: "invoices", name: "Invoices", route: "/admin/invoices" },
-	{ id: "reports", name: "Reports", route: "/admin/reports" },
-];
-
-const ACTIONS = ["read", "write"] as const;
-
-const toScope = (moduleId: string, action: (typeof ACTIONS)[number]) => `${moduleId}:${action}`;
-const toTitle = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import roleService from "@/api/services/roleService";
+import permissionService from "@/api/services/permissionService";
+import type { RoleData } from "../role";
 
 export default function PermissionPage() {
-	const roles = useManagementRoles();
-	const { assignPermissionsToRole } = useManagementActions();
+	const queryClient = useQueryClient();
+
+	const { data: rolesResp } = useQuery({ queryKey: ["roles"], queryFn: roleService.listRoles });
+	const { data: permsResp } = useQuery({ queryKey: ["permissions"], queryFn: permissionService.getPermissions });
+
+	const roles = (rolesResp as unknown as RoleData[]) || [];
+	const permissionGroups = (permsResp as unknown as any[]) || [];
+
 	const [selectedRoleId, setSelectedRoleId] = useState<string>("");
 	const [checkedScopes, setCheckedScopes] = useState<string[]>([]);
 	const [saving, setSaving] = useState(false);
 
-	const selectedRole = useMemo(() => roles.find((role) => role.id === selectedRoleId), [roles, selectedRoleId]);
-	const enabledRoles = useMemo(() => roles.filter((role) => role.status === BasicStatus.ENABLE), [roles]);
+	// Fetch detailed role permissions when a role is selected
+	const { data: roleDetailResp, isFetching: detailLoading } = useQuery({
+		queryKey: ["roleDetail", selectedRoleId],
+		queryFn: () => roleService.getRole(selectedRoleId),
+		enabled: !!selectedRoleId,
+	});
 
 	useEffect(() => {
 		if (!selectedRoleId && roles.length > 0) {
@@ -41,11 +37,12 @@ export default function PermissionPage() {
 	}, [roles, selectedRoleId]);
 
 	useEffect(() => {
-		const scopes = (selectedRole?.permission || [])
-			.map((permission) => permission.label)
-			.filter((label) => label && label.includes(":")) as string[];
-		setCheckedScopes(scopes);
-	}, [selectedRole]);
+		if ((roleDetailResp as any)?.permissions) {
+			setCheckedScopes((roleDetailResp as any).permissions);
+		} else {
+			setCheckedScopes([]);
+		}
+	}, [roleDetailResp]);
 
 	const toggleScope = (scope: string, checked: boolean) => {
 		setCheckedScopes((prev) => (checked ? Array.from(new Set([...prev, scope])) : prev.filter((item) => item !== scope)));
@@ -60,22 +57,12 @@ export default function PermissionPage() {
 		}
 		setSaving(true);
 		try {
-			const permissions: Permission_Old[] = checkedScopes.map((scope, index) => {
-				const [moduleId, action] = scope.split(":");
-				const module = MODULE_CATALOG.find((item) => item.id === moduleId);
-				return {
-					id: `scope-${moduleId}-${action}`,
-					parentId: "",
-					name: `${module?.name || moduleId} ${toTitle(action)}`,
-					label: scope,
-					type: PermissionType.MENU,
-					route: module?.route || "/",
-					status: BasicStatus.ENABLE,
-					order: index + 1,
-				};
-			});
-			assignPermissionsToRole(selectedRoleId, permissions);
+			await roleService.assignPermissions(selectedRoleId, { permission_codes: checkedScopes });
+			queryClient.invalidateQueries({ queryKey: ["roleDetail", selectedRoleId] });
+			queryClient.invalidateQueries({ queryKey: ["roles"] }); // update counts if needed
 			toast.success("Permissions attached to role");
+		} catch (error: any) {
+			toast.error(error?.message || "Failed to save permissions");
 		} finally {
 			setSaving(false);
 		}
@@ -92,8 +79,10 @@ export default function PermissionPage() {
 				</Card>
 				<Card>
 					<CardContent className="pt-6">
-						<p className="text-xs uppercase text-muted-foreground">Enabled Roles</p>
-						<p className="text-2xl font-semibold">{enabledRoles.length}</p>
+						<p className="text-xs uppercase text-muted-foreground">Total Permissions Available</p>
+						<p className="text-2xl font-semibold">
+							{permissionGroups.reduce((acc, group) => acc + (group.permissions?.length || 0), 0)}
+						</p>
 					</CardContent>
 				</Card>
 				<Card>
@@ -126,8 +115,8 @@ export default function PermissionPage() {
 									))}
 								</SelectContent>
 							</Select>
-							<Badge variant={selectedRole?.status === BasicStatus.DISABLE ? "error" : "success"}>
-								{selectedRole?.status === BasicStatus.DISABLE ? "Disable" : "Enable"}
+							<Badge variant="success">
+								Enable
 							</Badge>
 							<Button onClick={handleSave} disabled={!selectedRoleId || saving}>
 								Save
@@ -137,19 +126,19 @@ export default function PermissionPage() {
 				</CardHeader>
 				<CardContent>
 					<div className="space-y-3">
-						{MODULE_CATALOG.map((module) => (
-							<div key={module.id} className="rounded-md border border-border p-3">
-								<div className="mb-2 text-sm font-medium">{module.name}</div>
+						{permissionGroups.map((group: any) => (
+							<div key={group.group_name} className="rounded-md border border-border p-3">
+								<div className="mb-2 text-sm font-medium">{group.group_name}</div>
 								<div className="flex flex-wrap gap-4">
-									{ACTIONS.map((action) => {
-										const scope = toScope(module.id, action);
+									{group.permissions?.map((perm: any) => {
 										return (
-											<label key={scope} className="flex items-center gap-2 text-sm">
+											<label key={perm.code} className="flex items-center gap-2 text-sm">
 												<Checkbox
-													checked={checkedScopes.includes(scope)}
-													onCheckedChange={(checked) => toggleScope(scope, Boolean(checked))}
+													disabled={detailLoading || saving}
+													checked={checkedScopes.includes(perm.code)}
+													onCheckedChange={(checked) => toggleScope(perm.code, Boolean(checked))}
 												/>
-												<span className="capitalize">{action}</span>
+												<span className="capitalize">{perm.name}</span>
 											</label>
 										);
 									})}

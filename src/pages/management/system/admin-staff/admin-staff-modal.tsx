@@ -15,6 +15,8 @@ export type AdminStaffFormValues = {
 	first_name: string;
 	last_name: string;
 	email: string;
+	password?: string;
+	confirmPassword?: string;
 	phone?: string;
 	role_id: string;
 	status: BasicStatus;
@@ -59,9 +61,9 @@ export default function AdminStaffModal({ title, show, loading, formValue, roles
 							name="first_name"
 							rules={{ required: "First name is required" }}
 							render={({ field }) => (
-								<FormItem className="grid grid-cols-4 items-center gap-4">
+								<FormItem className="grid grid-cols-[130px_1fr] items-center gap-4">
 									<FormLabel className="text-right">First Name</FormLabel>
-									<div className="col-span-3">
+									<div className="w-full">
 										<FormControl>
 											<Input {...field} />
 										</FormControl>
@@ -75,9 +77,9 @@ export default function AdminStaffModal({ title, show, loading, formValue, roles
 							name="last_name"
 							rules={{ required: "Last name is required" }}
 							render={({ field }) => (
-								<FormItem className="grid grid-cols-4 items-center gap-4">
+								<FormItem className="grid grid-cols-[130px_1fr] items-center gap-4">
 									<FormLabel className="text-right">Last Name</FormLabel>
-									<div className="col-span-3">
+									<div className="w-full">
 										<FormControl>
 											<Input {...field} />
 										</FormControl>
@@ -97,9 +99,9 @@ export default function AdminStaffModal({ title, show, loading, formValue, roles
 								},
 							}}
 							render={({ field }) => (
-								<FormItem className="grid grid-cols-4 items-center gap-4">
+								<FormItem className="grid grid-cols-[130px_1fr] items-center gap-4">
 									<FormLabel className="text-right">Email</FormLabel>
-									<div className="col-span-3">
+									<div className="w-full">
 										<FormControl>
 											<Input type="email" {...field} />
 										</FormControl>
@@ -108,13 +110,56 @@ export default function AdminStaffModal({ title, show, loading, formValue, roles
 								</FormItem>
 							)}
 						/>
+						{!formValue.id && (
+							<>
+								<FormField
+									control={form.control}
+									name="password"
+									rules={{ required: "Password is required" }}
+									render={({ field }) => (
+										<FormItem className="grid grid-cols-[130px_1fr] items-center gap-4">
+											<FormLabel className="text-right">Password</FormLabel>
+											<div className="w-full">
+												<FormControl>
+													<Input type="password" {...field} />
+												</FormControl>
+												<FormMessage />
+											</div>
+										</FormItem>
+									)}
+								/>
+								<FormField
+									control={form.control}
+									name="confirmPassword"
+									rules={{
+										required: "Please confirm your password",
+										validate: (val) => {
+											if (form.getValues("password") !== val) {
+												return "Passwords do not match";
+											}
+										},
+									}}
+									render={({ field }) => (
+										<FormItem className="grid grid-cols-[130px_1fr] items-center gap-4">
+											<FormLabel className="text-right">Confirm Password</FormLabel>
+											<div className="w-full">
+												<FormControl>
+													<Input type="password" {...field} />
+												</FormControl>
+												<FormMessage />
+											</div>
+										</FormItem>
+									)}
+								/>
+							</>
+						)}
 						<FormField
 							control={form.control}
 							name="phone"
 							render={({ field }) => (
-								<FormItem className="grid grid-cols-4 items-center gap-4">
+								<FormItem className="grid grid-cols-[130px_1fr] items-center gap-4">
 									<FormLabel className="text-right">Phone</FormLabel>
-									<div className="col-span-3">
+									<div className="w-full">
 										<FormControl>
 											<Input placeholder="+91 98XXXXXX10" {...field} />
 										</FormControl>
@@ -128,9 +173,9 @@ export default function AdminStaffModal({ title, show, loading, formValue, roles
 							name="role_id"
 							rules={{ required: "Role is required" }}
 							render={({ field }) => (
-								<FormItem className="grid grid-cols-4 items-center gap-4">
+								<FormItem className="grid grid-cols-[130px_1fr] items-center gap-4">
 									<FormLabel className="text-right">Role</FormLabel>
-									<div className="col-span-3">
+									<div className="w-full">
 										<Select value={field.value} onValueChange={field.onChange}>
 											<FormControl>
 												<SelectTrigger>
@@ -154,9 +199,9 @@ export default function AdminStaffModal({ title, show, loading, formValue, roles
 							control={form.control}
 							name="status"
 							render={({ field }) => (
-								<FormItem className="grid grid-cols-4 items-center gap-4">
+								<FormItem className="grid grid-cols-[130px_1fr] items-center gap-4">
 									<FormLabel className="text-right">Status</FormLabel>
-									<div className="col-span-3">
+									<div className="w-full">
 										<FormControl>
 											<RadioGroup onValueChange={(value) => field.onChange(Number(value))} value={String(field.value)}>
 												<div className="flex items-center space-x-2">
