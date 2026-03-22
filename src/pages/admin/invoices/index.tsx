@@ -5,48 +5,85 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useMemo, useState } from "react";
-import { freelancers, invoices, type InvoiceRecord } from "../data";
+import { useQuery } from "@tanstack/react-query";
+import invoiceService from "@/api/services/invoiceService";
+import freelancerService from "@/api/services/freelancerService";
+
+type InvoiceRecord = {
+	id: string;
+	client_name?: string;
+	clientName?: string;
+	project_name?: string;
+	projectName?: string;
+	freelancer_id?: string;
+	freelancerId?: string;
+	status: string;
+	issued_date?: string;
+	issuedDate?: string;
+	due_date?: string;
+	dueDate?: string;
+	amount: number;
+	paid_amount?: number;
+	paidAmount?: number;
+};
+
+type Freelancer = {
+	id: string;
+	name: string;
+};
 
 export default function InvoicesGlobalPage() {
 	const [status, setStatus] = useState<string>("all");
 	const [freelancerId, setFreelancerId] = useState<string>("all");
 	const [query, setQuery] = useState("");
 
-	const rows = useMemo(() => {
-		return invoices.filter((invoice) => {
-			const matchesStatus = status === "all" || invoice.status === status;
-			const matchesFreelancer = freelancerId === "all" || invoice.freelancerId === freelancerId;
-			const key = query.trim().toLowerCase();
-			const matchesQuery =
-				!key ||
-				invoice.id.toLowerCase().includes(key) ||
-				invoice.clientName.toLowerCase().includes(key) ||
-				invoice.projectName.toLowerCase().includes(key);
-			return matchesStatus && matchesFreelancer && matchesQuery;
-		});
-	}, [status, freelancerId, query]);
+	const { data: invoicesResp, isLoading } = useQuery({
+		queryKey: ["invoices", status, freelancerId, query],
+		queryFn: () =>
+			invoiceService.list({
+				status: status !== "all" ? status : undefined,
+				freelancer_id: freelancerId !== "all" ? freelancerId : undefined,
+				search: query || undefined,
+			}),
+	}) as { data: any; isLoading: boolean };
+
+	const { data: freelancersResp } = useQuery({
+		queryKey: ["freelancers"],
+		queryFn: freelancerService.list,
+	}) as { data: any };
+
+	const invoices: InvoiceRecord[] = useMemo(() => {
+		if (!invoicesResp) return [];
+		const list = Array.isArray(invoicesResp) ? invoicesResp : invoicesResp.results || [];
+		return list;
+	}, [invoicesResp]);
+
+	const freelancers: Freelancer[] = useMemo(() => {
+		if (!freelancersResp) return [];
+		return Array.isArray(freelancersResp) ? freelancersResp : freelancersResp.results || [];
+	}, [freelancersResp]);
 
 	const columns: ColumnsType<InvoiceRecord> = [
 		{ title: "Invoice #", dataIndex: "id", width: 120 },
-		{ title: "Client", dataIndex: "clientName", width: 180 },
-		{ title: "Project", dataIndex: "projectName", width: 190 },
+		{ title: "Client", width: 180, render: (_, row) => row.client_name || row.clientName || "—" },
+		{ title: "Project", width: 190, render: (_, row) => row.project_name || row.projectName || "—" },
 		{
 			title: "Status",
 			dataIndex: "status",
 			width: 120,
-			render: (value: InvoiceRecord["status"]) => (
+			render: (value: string) => (
 				<Badge variant={value === "Paid" ? "success" : value === "Overdue" ? "error" : value === "Sent" ? "warning" : "secondary"}>{value}</Badge>
 			),
 		},
-		{ title: "Issued", dataIndex: "issuedDate", width: 120 },
-		{ title: "Due", dataIndex: "dueDate", width: 120 },
-		{ title: "Amount", dataIndex: "amount", width: 130, align: "right", render: (v: number) => `₹${v.toLocaleString()}` },
-		{ title: "Paid", dataIndex: "paidAmount", width: 120, align: "right", render: (v: number) => `₹${v.toLocaleString()}` },
+		{ title: "Issued", width: 120, render: (_, row) => row.issued_date || row.issuedDate || "—" },
+		{ title: "Due", width: 120, render: (_, row) => row.due_date || row.dueDate || "—" },
+		{ title: "Amount", width: 130, align: "right", render: (_, row) => `₹${(row.amount || 0).toLocaleString()}` },
+		{ title: "Paid", width: 120, align: "right", render: (_, row) => `₹${(row.paid_amount ?? row.paidAmount ?? 0).toLocaleString()}` },
 		{
 			title: "Balance",
 			width: 130,
 			align: "right",
-			render: (_, row) => `₹${Math.max(row.amount - row.paidAmount, 0).toLocaleString()}`,
+			render: (_, row) => `₹${Math.max((row.amount || 0) - (row.paid_amount ?? row.paidAmount ?? 0), 0).toLocaleString()}`,
 		},
 	];
 
@@ -90,7 +127,7 @@ export default function InvoicesGlobalPage() {
 					</div>
 				</CardHeader>
 				<CardContent>
-					<Table rowKey="id" size="small" scroll={{ x: "max-content" }} pagination={{ pageSize: 10 }} columns={columns} dataSource={rows} />
+					<Table rowKey="id" size="small" loading={isLoading} scroll={{ x: "max-content" }} pagination={{ pageSize: 10 }} columns={columns} dataSource={invoices} />
 				</CardContent>
 			</Card>
 		</div>
