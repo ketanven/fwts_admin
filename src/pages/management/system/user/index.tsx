@@ -331,7 +331,7 @@ export default function UserPage() {
 						<Button variant="outline" onClick={() => setConfirmTarget(null)} disabled={confirmLoading}>
 							Cancel
 						</Button>
-						<Button variant="destructive" onClick={onDelete} disabled={confirmLoading}>
+						<Button variant="destructive" onClick={onDelete} disabled={confirmLoading}> 
 							Delete
 						</Button>
 					</DialogFooter>
