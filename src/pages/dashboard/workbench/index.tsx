@@ -7,7 +7,6 @@ import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
 import { Progress } from "@/ui/progress";
 import { Text, Title } from "@/ui/typography";
-import { cn } from "@/utils";
 import { useQuery } from "@tanstack/react-query";
 
 const currency = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
@@ -17,14 +16,6 @@ const quickActions = [
 	{ label: "Add Freelancer", icon: "solar:user-plus-linear" },
 	{ label: "Add Project", icon: "solar:folder-with-files-linear" },
 ];
-
-function statusTone(status: string) {
-	if (status === "Paid" || status === "Completed" || status === "Active")
-		return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300";
-	if (status === "Overdue" || status === "On Hold") return "bg-orange-500/15 text-orange-700 dark:text-orange-300";
-	if (status === "Draft" || status === "Pending") return "bg-violet-500/15 text-violet-700 dark:text-violet-300";
-	return "bg-blue-500/15 text-blue-700 dark:text-blue-300";
-}
 
 export default function Workbench() {
 	const { data: stats } = useQuery({ queryKey: ["dashboard-stats"], queryFn: dashboardService.getStats }) as { data: any };

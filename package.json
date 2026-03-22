@@ -7,7 +7,11 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "tsc && vite build",
+		"build:staging": "tsc && vite build --mode staging",
+		"build:prod": "tsc && vite build --mode production",
 		"preview": "vite preview",
+		"preview:staging": "vite preview --mode staging",
+		"clean": "rm -rf dist node_modules/.vite",
 		"preinstall": "lefthook install"
 	},
 	"dependencies": {

@@ -81,15 +81,16 @@ checkAll(["permission:read", "permission:create"]) ? (
 `;
 
 export default function PermissionPage() {
-	const { permissions, roles, username } = useUserInfo();
+	const userInfo = useUserInfo() as any;
+	const { permissions, roles, username } = userInfo || {};
 	const signIn = useSignIn();
 	const { check, checkAny, checkAll } = useAuthCheck();
 
 	const handleSwitch = (_username: string) => {
 		if (_username === username) return;
-		const user = DB_USER.find((user) => user.username === _username);
+		const user = DB_USER.find((user: any) => user.username === _username);
 		if (user) {
-			signIn({ username: user.username, password: user.password });
+			signIn({ username: user.username, password: user.password } as any);
 		}
 	};
 	return (
@@ -111,7 +112,7 @@ export default function PermissionPage() {
 					<div className="flex items-center gap-2">
 						<Text variant="body1">当前用户角色：</Text>
 						{permissions && permissions.length > 0 ? (
-							<Text variant="body1">[{roles?.map((role) => role.name).join(", ")}]</Text>
+							<Text variant="body1">[{roles?.map((role: any) => role.name).join(", ")}]</Text>
 						) : (
 							<Text variant="body1">[]</Text>
 						)}
@@ -119,7 +120,7 @@ export default function PermissionPage() {
 					<div className="flex items-center gap-2">
 						<Text variant="body1">当前用户权限：</Text>
 						{permissions && permissions.length > 0 ? (
-							<Text variant="body1">[{permissions?.map((permission) => permission.code).join(", ")}]</Text>
+							<Text variant="body1">[{permissions?.map((permission: any) => permission.code).join(", ")}]</Text>
 						) : (
 							<Text variant="body1">[]</Text>
 						)}

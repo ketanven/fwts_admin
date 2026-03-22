@@ -325,7 +325,7 @@ export default function UserPage() {
 						<DialogTitle>Delete User</DialogTitle>
 					</DialogHeader>
 					<div className="text-sm text-muted-foreground">
-						Are you sure you want to delete {confirmTarget?.username}? This action cannot be undone.
+						Are you sure you want to delete {confirmTarget?.email}? This action cannot be undone.
 					</div>
 					<DialogFooter>
 						<Button variant="outline" onClick={() => setConfirmTarget(null)} disabled={confirmLoading}>
@@ -352,7 +352,7 @@ const toPayload = (values: UserFormValues) => {
 	if (values.password) {
 		payload.password = values.password;
 	}
-	return payload;
+	return payload as any;
 };
 
 const extractFieldErrors = (error: any): Record<string, string[]> | null => {

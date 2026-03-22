@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Chart } from "@/components/chart/chart";
 import { useChart } from "@/components/chart/useChart";
 import Icon from "@/components/icon/icon";
 import dashboardService from "@/api/services/dashboardService";
 import { Badge } from "@/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
-import { Progress } from "@/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { Text, Title } from "@/ui/typography";
 import { cn } from "@/utils";
